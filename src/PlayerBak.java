@@ -2,12 +2,10 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Auto-generated code below aims at helping you parse
- * the standard input according to the problem statement.
  **/
 class PlayerBak {
 
-	public static LogLevel LOG_LEVEL = LogLevel.DEBUG;
+	public static LogLevel LOG_LEVEL = LogLevel.INFO;
 	
     private final static boolean showLinks = false;
     private final static boolean showFactories = false;
@@ -55,8 +53,14 @@ class PlayerBak {
 		public Set<Factory> lostFactories;
 		
 		public List<Factory> cachedOwnFactories;
+		public List<Factory> cachedEnemyFactories;
+		public List<Factory> cachedNeutralFactories;
 		
     	public PHASE phase;
+    	
+    	public int bombsLeft;
+    	public Bomb lastOwnBomb;
+    	public Bomb followUpBomb;
 		
 		public World(int numFactories) {
 			this.tick = 0;
@@ -67,11 +71,23 @@ class PlayerBak {
 			this.move = new Move();
 			this.phase = PHASE.INIT;
 			this.lostFactories = new HashSet<>();
+			this.bombsLeft = 2;
 			this.cachedOwnFactories = null;
+			this.cachedEnemyFactories = null;
+			this.cachedNeutralFactories = null;
 		}
 		public void nextTick() {
 			tick += 1;
 			move = new Move();
+			for (Factory fac:factories) {
+				fac.nextTick(this);
+			}
+			for (Troop troop:troops.values()) {
+				troop.nextTick(this);
+			}
+			for (Bomb bomb:bombs.values()) {
+				bomb.nextTick(this);
+			}
 		}
 		public Factory getFactoy(int facId) {
 			return factories[facId];
@@ -110,8 +126,19 @@ class PlayerBak {
 		public void updateBomb(int bombId, int owner, int from, int to, int eta) {
 			Bomb bomb = bombs.get(bombId);
 			if (bomb == null) {
-				bomb = new Bomb(this, bombId, owner, from, to, eta);
-				bombs.put(bombId, bomb);
+				initBomb(bombId, owner, from, to, eta);
+			}
+			else {
+				bomb.updateBomb(owner, from, to, eta);
+			}
+		}
+		private void initBomb(int bombId, int owner, int from, int to, int eta) {
+			Bomb bomb = new Bomb(this, bombId, owner, from, to, eta);
+			bombs.put(bombId, bomb);
+			if (owner == 1) {
+				lastOwnBomb = bomb;
+				followUpBomb = bomb;
+				bombsLeft -= 1;
 			}
 		}
 		public void cleanup() {
@@ -134,8 +161,14 @@ class PlayerBak {
 				removeTroop(troop);
 			}
 			cachedOwnFactories = null;
+			cachedEnemyFactories = null;
+			cachedNeutralFactories = null;
 		}
 		private void removeBomb(Bomb bomb) {
+			if (bomb == lastOwnBomb) {
+				e("remove: ", lastOwnBomb);
+				lastOwnBomb = null;
+			}
 			bomb.destroy(this);
 			bombs.remove(bomb.id);
 		}
@@ -155,10 +188,11 @@ class PlayerBak {
 				else {
 					toFac.calcIncomingEnemy += troop.numCyb;
 				}
+				d("calc: ", troop, " -> ", toFac);
 			}
 			for (Factory fac:factories) {
 				if (fac.isMine()) {
-					fac.calcEffectiveNumCyb = Math.min(fac.numCyb, fac.numCyb + fac.calcIncomingOwn - fac.calcIncomingEnemy);
+					fac.calcEffectiveNumCyb = fac.numCyb + fac.calcIncomingOwn - fac.calcIncomingEnemy;
 				}
 				else {
 					fac.calcEffectiveNumCyb = fac.numCyb + fac.calcIncomingEnemy - fac.calcIncomingOwn;
@@ -181,34 +215,154 @@ class PlayerBak {
 		}
 		
 		private void calcBestInitMoves() {
+			escapeBombs();
+			sendBombs();
 			List<Factory> closestFacs = getClosestFactories(0);
 			d("closestFacs: ", closestFacs);
 			int freeTroops = calcSumFreeTroops();
 			d("freeTroops: ", freeTroops);
+			boolean noNeutralFactoryLeft = true;
 			for (Factory fac:closestFacs) {
 				if (fac.productivity == 0) {
 					continue;
 				}
+				noNeutralFactoryLeft = false;
 				if ((fac.calcEffectiveNumCyb >= 0) && (fac.calcEffectiveNumCyb < freeTroops)) {
-					freeTroops = freeTroops - fac.calcEffectiveNumCyb - 1; 
-					sendClosestTroops(fac, fac.calcEffectiveNumCyb+1);
+					int neededTroops = Math.max(fac.numCyb, fac.calcEffectiveNumCyb); 
+					if (neededTroops < freeTroops) {
+						freeTroops = freeTroops - neededTroops - 1; 
+						sendClosestTroops(fac, neededTroops+1);
+					}
 				}
+			}
+			if (noNeutralFactoryLeft) {
+				phase = PHASE.PLAY;
+				move.addMove("MSG --- PHASE CHANGED TO PLAY ---");
+				calcBestPlayMoves();
 			}
 		}
 		
 		private void calcBestPlayMoves() {
-			List<Factory> lostFacs = sortClosestToOwnArea(lostFactories);
-			d("lostFacs: ", lostFacs);
+			escapeBombs();
+			sendBombs();
+			List<Factory> enemyFacs = sortClosestToOwnArea(enemyFactories());
+			
+			// move unproductiv enemy factories to end:
+			List<Factory> enemyFacsUnproductive = filterUnproductive(enemyFacs);
+			enemyFacs.removeAll(enemyFacsUnproductive);
+			enemyFacs.addAll(enemyFacsUnproductive);
+			
+			d("enemyFacs: ", enemyFacs);
 			int freeTroops = calcSumFreeTroops();
 			d("freeTroops: ", freeTroops);
-			for (Factory fac:lostFacs) {
-				if (fac.calcEffectiveNumCyb < freeTroops) {
-					freeTroops = freeTroops - fac.calcEffectiveNumCyb - 1; 
-					sendClosestTroops(fac, fac.calcEffectiveNumCyb+1);
+			for (Factory fac:enemyFacs) {
+				int neededTroops = Math.max(fac.numCyb, fac.calcEffectiveNumCyb)+5;   // +5r4r1r47r10, +4R40, +6R17R7R6, +7R13
+				if (neededTroops < freeTroops) {
+					freeTroops = freeTroops - neededTroops - 1; 
+					sendClosestTroops(fac, neededTroops+1);
 				}
 			}
 		}
 		
+		private List<Factory> filterUnproductive(List<Factory> facs) {
+			return facs.stream().filter(fac -> fac.productivity == 0).collect(Collectors.toList());
+		}
+		private void escapeBombs() {
+			for (Bomb bomb:bombs.values()) {
+				if (bomb.isEnemy()) {
+					int bombStartFacId = bomb.from;
+					int bombDist = (tick - bomb.startTick)+1;
+					for (Factory fac:ownFactories()) {
+						if (dist(bombStartFacId, fac) == bombDist) {
+							escape(fac);
+						}
+					}
+				}
+			}
+		}
+		private void escape(Factory fac) {
+			d("escape: ", fac);
+			int num = fac.numCyb-1;
+			if (num <= 0) {
+				return;
+			}
+			Factory targetFac = null;
+			List<Factory> closestFacs = sortClosestFactories(fac);
+			for (Factory closeFac:closestFacs) {
+				if (closeFac.isMine()) {
+					targetFac = closeFac;
+					break;
+				}
+				if (closeFac.numCyb == 0) {
+					targetFac = closeFac;
+					break;
+				}
+				if (closeFac.isEnemy()) {
+					targetFac = closeFac;
+					break;
+				}
+			}
+			d("to: ", targetFac);
+			move.addMove("MOVE "+fac.id+" "+targetFac.id+" "+num);
+			fac.numCyb -= num;
+			fac.calcEffectiveNumCyb -= num;
+			targetFac.calcIncomingEnemy += num;
+			if (targetFac.isMine()) {
+				targetFac.calcEffectiveNumCyb += num;
+			}
+			else {
+				targetFac.calcEffectiveNumCyb -= num;
+			}
+			
+			
+		}
+		private void sendBombs() {
+			if (followUpBomb != null) {
+				Factory fromFac = getFactoy(followUpBomb.from);
+				if (fromFac.isMine() && (fromFac.numCyb > 1)) {
+					Factory toFac = getFactoy(followUpBomb.to);
+					move.addMove("MOVE "+fromFac.id+" "+toFac.id+" 1");
+					fromFac.numCyb -= 1;
+					fromFac.calcEffectiveNumCyb -= 1;
+					toFac.calcIncomingOwn += 1;
+				}
+				followUpBomb = null;
+			}
+			if (bombsLeft <= 0) {
+				return;
+			}
+			if (lastOwnBomb != null) {
+				return;
+			}
+			List<Factory> enemyFacs = enemyFactories();
+			if (enemyFacs.isEmpty()) {
+				return;
+			}
+			Factory biggestEnemyFactory = enemyFacs.stream().max((f1, f2) -> {
+				return Integer.compare(f1.numCyb, f2.numCyb);} ).get();
+			if (biggestEnemyFactory.numCyb < 10) {
+				return;
+			}
+			Factory closestOwnFac = selectClosestToFactory(biggestEnemyFactory, ownFactories());
+			move.addMove("BOMB "+closestOwnFac.id+" "+biggestEnemyFactory.id);
+		}
+		
+		public Factory selectClosestToFactory(Factory srcFac, List<Factory> possibleFacs) {
+			List<WeightedFactory> result = new ArrayList<>(); 
+			for (Factory fac:possibleFacs) {
+				if (fac == srcFac) {
+					continue;
+				}
+				result.add(new WeightedFactory(fac, dist(srcFac, fac)));
+			}
+			if (result.isEmpty()) {
+				return null;
+			}
+			return result.stream().min((wf1, wf2) -> {
+				return wf1.compareTo(wf2);
+			}).get().fac;
+		}
+
 		private List<Factory> sortClosestToOwnArea(Collection<Factory> unsortedFac) {
 			List<WeightedFactory> result = new ArrayList<>(); 
 			for (Factory fac:unsortedFac) {
@@ -246,28 +400,50 @@ class PlayerBak {
 			d("SCT(", targetFac, ", ", num, ")");
 			List<Factory> closestOwnFacs = findClosestOwnFactories(targetFac); 
 			for (Factory ownFac:closestOwnFacs) {
-				d(ownFac);
-				if (ownFac.calcEffectiveNumCyb > 0) {
-					if (ownFac.calcEffectiveNumCyb >= num) {
+				if (ownFac == targetFac) {
+					continue;
+				}
+				d("FROM: ", ownFac);
+				int numSend = Math.min(ownFac.calcEffectiveNumCyb, ownFac.numCyb);
+				if (numSend > 0) {
+					if (numSend >= num) {
+						numSend = num;
 						d("SEND ALL ");
-						move.addMove("MOVE "+ownFac.id+" "+targetFac.id+" "+num);
-						ownFac.numCyb -= num;
-						ownFac.calcEffectiveNumCyb -= num;
-						targetFac.calcIncomingOwn += num;
+						move.addMove("MOVE "+ownFac.id+" "+targetFac.id+" "+numSend);
+						ownFac.numCyb -= numSend;
+						ownFac.calcEffectiveNumCyb -= numSend;
+						targetFac.calcIncomingOwn += numSend;
 						return;
 					}
 					d("SEND PART ");
-					move.addMove("MOVE "+ownFac.id+" "+targetFac.id+" "+ownFac.calcEffectiveNumCyb);
-					ownFac.numCyb -= num;
-					ownFac.calcEffectiveNumCyb -= ownFac.calcEffectiveNumCyb;
-					targetFac.calcIncomingOwn += ownFac.calcEffectiveNumCyb;
+					move.addMove("MOVE "+ownFac.id+" "+targetFac.id+" "+numSend);
+					ownFac.numCyb -= numSend;
+					ownFac.calcEffectiveNumCyb -= numSend;
+					targetFac.calcIncomingOwn += numSend;
 				}
 			}
 		}
 		
-
+		public List<Factory> sortClosestFactories(Factory srcFac) {
+			List<Factory> unsorted = new ArrayList<>();
+			for (Factory fac:factories) {
+				if (fac != srcFac) {
+					unsorted.add(fac);
+				}
+			}
+			return sortClosestToFactory(srcFac, unsorted);
+		}
 		public List<Factory> findClosestOwnFactories(Factory srcFac) {
 			return sortClosestToFactory(srcFac, ownFactories());
+		}
+		public Factory selectClosestOwnFactory(Factory srcFac) {
+			return selectClosestToFactory(srcFac, ownFactories());
+		}
+		public Factory selectClosestEnemyFactory(Factory srcFac) {
+			return selectClosestToFactory(srcFac, enemyFactories());
+		}
+		public Factory selectClosestNeutralFactory(Factory srcFac) {
+			return selectClosestToFactory(srcFac, neutralFactories());
 		}
 		private List<Factory> ownFactories() {
 			if (cachedOwnFactories != null) {
@@ -281,21 +457,36 @@ class PlayerBak {
 			}
 			return cachedOwnFactories;
 		}
-//		public List<Factory> findMyFactories() {
-//			List<Factory> result = new ArrayList<>();
-//			for (Factory fac:factories) {
-//				if (fac.isMine()) {
-//					result.add(fac);
-//				}
-//			}
-//			return result;
-//		}
+		private List<Factory> enemyFactories() {
+			if (cachedEnemyFactories != null) {
+				return cachedEnemyFactories;
+			}
+			cachedEnemyFactories = new ArrayList<>();
+			for (Factory fac:factories) {
+				if (fac.isEnemy()) {
+					cachedEnemyFactories.add(fac);
+				}
+			}
+			return cachedEnemyFactories;
+		}
+		private List<Factory> neutralFactories() {
+			if (cachedNeutralFactories != null) {
+				return cachedNeutralFactories;
+			}
+			cachedNeutralFactories = new ArrayList<>();
+			for (Factory fac:factories) {
+				if (fac.isNeutral()) {
+					cachedNeutralFactories.add(fac);
+				}
+			}
+			return cachedNeutralFactories;
+		}
 		
 		private int calcSumFreeTroops() {
 			int sumFreeTroops = 0;
 			for (Factory myFac:factories) {
 				if (myFac.isMine()) {
-					sumFreeTroops += myFac.calcEffectiveNumCyb;
+					sumFreeTroops += Math.max(0, Math.min(myFac.numCyb-1, myFac.calcEffectiveNumCyb-1));
 				}
 			}
 			return sumFreeTroops;
@@ -342,7 +533,6 @@ class PlayerBak {
 			if (phase == PHASE.INIT) {
 				phase = PHASE.PLAY;
 				move.addMove("MSG --- PHASE CHANGED TO PLAY ---");
-				System.err.println("*** PHASE CHANGED TO PLAY ***");
 			}
 			lostFactories.add(factory);
 		}
@@ -407,7 +597,9 @@ class PlayerBak {
 			int oldOwner = owner;
 			owner = newOwner;
 			numCyb = newNumCyb;
-			productivity = newProductivity;
+			if (newPaused==0) {
+				productivity = newProductivity;
+			}
 			paused = newPaused;
 			if (oldOwner != newOwner) {
 				if (oldOwner == 1) {
@@ -474,7 +666,7 @@ class PlayerBak {
         }
         public void destroy(World world) { 
         }
-		public void updateBomb(int owner, int from, int to, int numCyb, int eta) {
+		public void updateBomb(int owner, int from, int to, int eta) {
         	super.update(owner, from, to, eta);
 		}
         @Override public void nextTick(World world) {
@@ -500,7 +692,7 @@ class PlayerBak {
         	super.nextTick(world);
         }
         @Override public String toString() {
-            return "T["+id+"|"+ownerChar[owner+1]+","+from+"->"+to+",eta="+arrivalTick+"]";
+            return "T["+id+"|"+ownerChar[owner+1]+","+from+"->"+to+"#"+numCyb+",eta="+arrivalTick+"]";
         }
     }
 
@@ -515,9 +707,7 @@ class PlayerBak {
 	            int distance = in.nextInt();
 	            distances[factory1][factory2] = distance;
 	            distances[factory2][factory1] = distance;
-	            if (showLinks) {
-	                i("LINK: "+factory1+"->"+factory2+" ("+distance+")");
-	            }
+                _i(showLinks, "LINK: "+factory1+"->"+factory2+" ("+distance+")");
 	        }
 	
 	        World world = new World(factoryCount);
@@ -537,28 +727,20 @@ class PlayerBak {
 	                if (entityType.equals("FACTORY")) {
 	                	// owner, numCyb, productivity, paused
 	                    world.updateFactory(entityId, arg1, arg2, arg3, arg4);
-	                    if (showFactories) {
-	                        i(world.getFactoy(entityId));
-	                    }
+                        _i(showFactories, world.getFactoy(entityId));
 	                }
 	                else if (entityType.equals("TROOP"))  { 
 	                	// owner, from, to, numCyb, eta
 	                	world.updateTroop(entityId, arg1, arg2, arg3, arg4, arg5);
-	                    if (showTroops) {
-	                        i(world.getTroop(entityId));
-	                    }
+	                    _i(showTroops, world.getTroop(entityId));
 	                }
 	                else if (entityType.equals("BOMB"))  { 
 	                    // owner, src, dest, eta
 	                	world.updateBomb(entityId, arg1, arg2, arg3, arg4);
-	                    if (showBombs) {
-	                        i(world.getBomb(entityId));
-	                    }
+	                    _i(showBombs, world.getBomb(entityId));
 	                }
 	                else { 
-	                    if (showLOthers) {
-	                        i(entityType+"->"+entityId+" ("+arg1+","+arg2+","+arg3+","+arg4+","+arg5+")");
-	                    }
+	                    _i(showLOthers, entityType+"->"+entityId+" ("+arg1+","+arg2+","+arg3+","+arg4+","+arg5+")");
 	                }
 	            }
 	
@@ -585,11 +767,15 @@ class PlayerBak {
 
 
     
+    public static void _d(boolean show, Object... objs) { if (show) log(LogLevel.DEBUG, objs); }
+    public static void _i(boolean show, Object... objs) { if (show) log(LogLevel.INFO, objs); }
+    public static void _e(boolean show, Object... objs) { if (show) log(LogLevel.ERROR, objs); }
     public static void d(Object... objs) { log(LogLevel.DEBUG, objs); }
     public static void i(Object... objs) { log(LogLevel.INFO, objs); }
     public static void e(Object... objs) { log(LogLevel.ERROR, objs); }
     public static void log(LogLevel lvl, Object... objs) {
     	if (lvl.ordinal() >= LOG_LEVEL.ordinal()) {
+    		System.err.print("["+lvl+"] ");
     		logAlways(objs);
     	}
     }
