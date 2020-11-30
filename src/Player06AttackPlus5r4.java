@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
  * 
  * https://www.codingame.com/share-replay/512099216
  **/
-class Player {
+class Player06AttackPlus5r4 {
 
 	public static LogLevel LOG_LEVEL = LogLevel.INFO;
 	
@@ -255,7 +255,7 @@ class Player {
 			int freeTroops = calcSumFreeTroops();
 			d("freeTroops: ", freeTroops);
 			for (Factory fac:enemyFacs) {
-				int neededTroops = Math.max(fac.numCyb, fac.calcEffectiveNumCyb)+5;   // +5R4R1R47, +4R40, +6R17R7R6, +7R13
+				int neededTroops = Math.max(fac.numCyb, fac.calcEffectiveNumCyb)+5; 
 				if (neededTroops < freeTroops) {
 					freeTroops = freeTroops - neededTroops - 1; 
 					sendClosestTroops(fac, neededTroops+1);
