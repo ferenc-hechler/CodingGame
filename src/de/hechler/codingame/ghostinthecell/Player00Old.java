@@ -1,3 +1,4 @@
+package de.hechler.codingame.ghostinthecell;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.io.*;

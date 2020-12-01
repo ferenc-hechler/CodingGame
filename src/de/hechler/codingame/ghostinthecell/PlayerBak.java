@@ -1,19 +1,10 @@
+package de.hechler.codingame.ghostinthecell;
 import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * seed=656322372
- * https://www.codingame.com/replay/512108173
- * 
- * seed=290265141
- * 
- * seed=51334912
- * seed=196039244
- * seed=814969575
- * 
- * https://www.codingame.com/share-replay/512099216
  **/
-class Player06AttackPlus5r4 {
+class PlayerBak {
 
 	public static LogLevel LOG_LEVEL = LogLevel.INFO;
 	
@@ -64,6 +55,7 @@ class Player06AttackPlus5r4 {
 		
 		public List<Factory> cachedOwnFactories;
 		public List<Factory> cachedEnemyFactories;
+		public List<Factory> cachedNeutralFactories;
 		
     	public PHASE phase;
     	
@@ -83,6 +75,7 @@ class Player06AttackPlus5r4 {
 			this.bombsLeft = 2;
 			this.cachedOwnFactories = null;
 			this.cachedEnemyFactories = null;
+			this.cachedNeutralFactories = null;
 		}
 		public void nextTick() {
 			tick += 1;
@@ -170,6 +163,7 @@ class Player06AttackPlus5r4 {
 			}
 			cachedOwnFactories = null;
 			cachedEnemyFactories = null;
+			cachedNeutralFactories = null;
 		}
 		private void removeBomb(Bomb bomb) {
 			if (bomb == lastOwnBomb) {
@@ -222,6 +216,7 @@ class Player06AttackPlus5r4 {
 		}
 		
 		private void calcBestInitMoves() {
+			escapeBombs();
 			sendBombs();
 			List<Factory> closestFacs = getClosestFactories(0);
 			d("closestFacs: ", closestFacs);
@@ -249,8 +244,15 @@ class Player06AttackPlus5r4 {
 		}
 		
 		private void calcBestPlayMoves() {
+			escapeBombs();
 			sendBombs();
 			List<Factory> enemyFacs = sortClosestToOwnArea(enemyFactories());
+			
+			// move unproductiv enemy factories to end:
+			List<Factory> enemyFacsUnproductive = filterUnproductive(enemyFacs);
+			enemyFacs.removeAll(enemyFacsUnproductive);
+			enemyFacs.addAll(enemyFacsUnproductive);
+			
 			d("enemyFacs: ", enemyFacs);
 			int freeTroops = calcSumFreeTroops();
 			d("freeTroops: ", freeTroops);
@@ -263,6 +265,58 @@ class Player06AttackPlus5r4 {
 			}
 		}
 		
+		private List<Factory> filterUnproductive(List<Factory> facs) {
+			return facs.stream().filter(fac -> fac.productivity == 0).collect(Collectors.toList());
+		}
+		private void escapeBombs() {
+			for (Bomb bomb:bombs.values()) {
+				if (bomb.isEnemy()) {
+					int bombStartFacId = bomb.from;
+					int bombDist = (tick - bomb.startTick)+1;
+					for (Factory fac:ownFactories()) {
+						if (dist(bombStartFacId, fac) == bombDist) {
+							escape(fac);
+						}
+					}
+				}
+			}
+		}
+		private void escape(Factory fac) {
+			d("escape: ", fac);
+			int num = fac.numCyb-1;
+			if (num <= 0) {
+				return;
+			}
+			Factory targetFac = null;
+			List<Factory> closestFacs = sortClosestFactories(fac);
+			for (Factory closeFac:closestFacs) {
+				if (closeFac.isMine()) {
+					targetFac = closeFac;
+					break;
+				}
+				if (closeFac.numCyb == 0) {
+					targetFac = closeFac;
+					break;
+				}
+				if (closeFac.isEnemy()) {
+					targetFac = closeFac;
+					break;
+				}
+			}
+			d("to: ", targetFac);
+			move.addMove("MOVE "+fac.id+" "+targetFac.id+" "+num);
+			fac.numCyb -= num;
+			fac.calcEffectiveNumCyb -= num;
+			targetFac.calcIncomingEnemy += num;
+			if (targetFac.isMine()) {
+				targetFac.calcEffectiveNumCyb += num;
+			}
+			else {
+				targetFac.calcEffectiveNumCyb -= num;
+			}
+			
+			
+		}
 		private void sendBombs() {
 			if (followUpBomb != null) {
 				Factory fromFac = getFactoy(followUpBomb.from);
@@ -297,9 +351,15 @@ class Player06AttackPlus5r4 {
 		public Factory selectClosestToFactory(Factory srcFac, List<Factory> possibleFacs) {
 			List<WeightedFactory> result = new ArrayList<>(); 
 			for (Factory fac:possibleFacs) {
+				if (fac == srcFac) {
+					continue;
+				}
 				result.add(new WeightedFactory(fac, dist(srcFac, fac)));
 			}
-			return result.stream().max((wf1, wf2) -> {
+			if (result.isEmpty()) {
+				return null;
+			}
+			return result.stream().min((wf1, wf2) -> {
 				return wf1.compareTo(wf2);
 			}).get().fac;
 		}
@@ -365,9 +425,26 @@ class Player06AttackPlus5r4 {
 			}
 		}
 		
-
+		public List<Factory> sortClosestFactories(Factory srcFac) {
+			List<Factory> unsorted = new ArrayList<>();
+			for (Factory fac:factories) {
+				if (fac != srcFac) {
+					unsorted.add(fac);
+				}
+			}
+			return sortClosestToFactory(srcFac, unsorted);
+		}
 		public List<Factory> findClosestOwnFactories(Factory srcFac) {
 			return sortClosestToFactory(srcFac, ownFactories());
+		}
+		public Factory selectClosestOwnFactory(Factory srcFac) {
+			return selectClosestToFactory(srcFac, ownFactories());
+		}
+		public Factory selectClosestEnemyFactory(Factory srcFac) {
+			return selectClosestToFactory(srcFac, enemyFactories());
+		}
+		public Factory selectClosestNeutralFactory(Factory srcFac) {
+			return selectClosestToFactory(srcFac, neutralFactories());
 		}
 		private List<Factory> ownFactories() {
 			if (cachedOwnFactories != null) {
@@ -392,6 +469,18 @@ class Player06AttackPlus5r4 {
 				}
 			}
 			return cachedEnemyFactories;
+		}
+		private List<Factory> neutralFactories() {
+			if (cachedNeutralFactories != null) {
+				return cachedNeutralFactories;
+			}
+			cachedNeutralFactories = new ArrayList<>();
+			for (Factory fac:factories) {
+				if (fac.isNeutral()) {
+					cachedNeutralFactories.add(fac);
+				}
+			}
+			return cachedNeutralFactories;
 		}
 		
 		private int calcSumFreeTroops() {
@@ -509,7 +598,9 @@ class Player06AttackPlus5r4 {
 			int oldOwner = owner;
 			owner = newOwner;
 			numCyb = newNumCyb;
-			productivity = newProductivity;
+			if (newPaused==0) {
+				productivity = newProductivity;
+			}
 			paused = newPaused;
 			if (oldOwner != newOwner) {
 				if (oldOwner == 1) {
@@ -617,9 +708,7 @@ class Player06AttackPlus5r4 {
 	            int distance = in.nextInt();
 	            distances[factory1][factory2] = distance;
 	            distances[factory2][factory1] = distance;
-	            if (showLinks) {
-	                i("LINK: "+factory1+"->"+factory2+" ("+distance+")");
-	            }
+                _i(showLinks, "LINK: "+factory1+"->"+factory2+" ("+distance+")");
 	        }
 	
 	        World world = new World(factoryCount);
@@ -639,28 +728,20 @@ class Player06AttackPlus5r4 {
 	                if (entityType.equals("FACTORY")) {
 	                	// owner, numCyb, productivity, paused
 	                    world.updateFactory(entityId, arg1, arg2, arg3, arg4);
-	                    if (showFactories) {
-	                        i(world.getFactoy(entityId));
-	                    }
+                        _i(showFactories, world.getFactoy(entityId));
 	                }
 	                else if (entityType.equals("TROOP"))  { 
 	                	// owner, from, to, numCyb, eta
 	                	world.updateTroop(entityId, arg1, arg2, arg3, arg4, arg5);
-	                    if (showTroops) {
-	                        i(world.getTroop(entityId));
-	                    }
+	                    _i(showTroops, world.getTroop(entityId));
 	                }
 	                else if (entityType.equals("BOMB"))  { 
 	                    // owner, src, dest, eta
 	                	world.updateBomb(entityId, arg1, arg2, arg3, arg4);
-	                    if (showBombs) {
-	                        i(world.getBomb(entityId));
-	                    }
+	                    _i(showBombs, world.getBomb(entityId));
 	                }
 	                else { 
-	                    if (showLOthers) {
-	                        i(entityType+"->"+entityId+" ("+arg1+","+arg2+","+arg3+","+arg4+","+arg5+")");
-	                    }
+	                    _i(showLOthers, entityType+"->"+entityId+" ("+arg1+","+arg2+","+arg3+","+arg4+","+arg5+")");
 	                }
 	            }
 	
@@ -687,6 +768,9 @@ class Player06AttackPlus5r4 {
 
 
     
+    public static void _d(boolean show, Object... objs) { if (show) log(LogLevel.DEBUG, objs); }
+    public static void _i(boolean show, Object... objs) { if (show) log(LogLevel.INFO, objs); }
+    public static void _e(boolean show, Object... objs) { if (show) log(LogLevel.ERROR, objs); }
     public static void d(Object... objs) { log(LogLevel.DEBUG, objs); }
     public static void i(Object... objs) { log(LogLevel.INFO, objs); }
     public static void e(Object... objs) { log(LogLevel.ERROR, objs); }

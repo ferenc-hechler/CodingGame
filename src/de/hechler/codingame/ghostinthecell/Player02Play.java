@@ -1,3 +1,4 @@
+package de.hechler.codingame.ghostinthecell;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -5,7 +6,7 @@ import java.util.stream.Collectors;
  * Auto-generated code below aims at helping you parse
  * the standard input according to the problem statement.
  **/
-class Player04BombR63 {
+class Player02Play {
 
 	public static LogLevel LOG_LEVEL = LogLevel.DEBUG;
 	
@@ -55,12 +56,8 @@ class Player04BombR63 {
 		public Set<Factory> lostFactories;
 		
 		public List<Factory> cachedOwnFactories;
-		public List<Factory> cachedEnemyFactories;
 		
     	public PHASE phase;
-    	
-    	public int bombsLeft;
-    	public Bomb lastOwnBomb;
 		
 		public World(int numFactories) {
 			this.tick = 0;
@@ -71,9 +68,7 @@ class Player04BombR63 {
 			this.move = new Move();
 			this.phase = PHASE.INIT;
 			this.lostFactories = new HashSet<>();
-			this.bombsLeft = 2;
 			this.cachedOwnFactories = null;
-			this.cachedEnemyFactories = null;
 		}
 		public void nextTick() {
 			tick += 1;
@@ -125,18 +120,8 @@ class Player04BombR63 {
 		public void updateBomb(int bombId, int owner, int from, int to, int eta) {
 			Bomb bomb = bombs.get(bombId);
 			if (bomb == null) {
-				initBomb(bombId, owner, from, to, eta);
-			}
-			else {
-				bomb.updateBomb(owner, from, to, eta);
-			}
-		}
-		private void initBomb(int bombId, int owner, int from, int to, int eta) {
-			Bomb bomb = new Bomb(this, bombId, owner, from, to, eta);
-			bombs.put(bombId, bomb);
-			if (owner == 1) {
-				lastOwnBomb = bomb;
-				bombsLeft -= 1;
+				bomb = new Bomb(this, bombId, owner, from, to, eta);
+				bombs.put(bombId, bomb);
 			}
 		}
 		public void cleanup() {
@@ -159,13 +144,8 @@ class Player04BombR63 {
 				removeTroop(troop);
 			}
 			cachedOwnFactories = null;
-			cachedEnemyFactories = null;
 		}
 		private void removeBomb(Bomb bomb) {
-			if (bomb == lastOwnBomb) {
-				e("remove: ", lastOwnBomb);
-				lastOwnBomb = null;
-			}
 			bomb.destroy(this);
 			bombs.remove(bomb.id);
 		}
@@ -216,12 +196,10 @@ class Player04BombR63 {
 			d("closestFacs: ", closestFacs);
 			int freeTroops = calcSumFreeTroops();
 			d("freeTroops: ", freeTroops);
-			boolean noNeutralFactoryLeft = true;
 			for (Factory fac:closestFacs) {
 				if (fac.productivity == 0) {
 					continue;
 				}
-				noNeutralFactoryLeft = false;
 				if ((fac.calcEffectiveNumCyb >= 0) && (fac.calcEffectiveNumCyb < freeTroops)) {
 					int neededTroops = Math.max(fac.numCyb, fac.calcEffectiveNumCyb); 
 					if (neededTroops < freeTroops) {
@@ -230,20 +208,14 @@ class Player04BombR63 {
 					}
 				}
 			}
-			if (noNeutralFactoryLeft) {
-				phase = PHASE.PLAY;
-				move.addMove("MSG --- PHASE CHANGED TO PLAY ---");
-				calcBestPlayMoves();
-			}
 		}
 		
 		private void calcBestPlayMoves() {
-			sendBombs();
-			List<Factory> enemyFacs = sortClosestToOwnArea(enemyFactories());
-			d("enemyFacs: ", enemyFacs);
+			List<Factory> lostFacs = sortClosestToOwnArea(lostFactories);
+			d("lostFacs: ", lostFacs);
 			int freeTroops = calcSumFreeTroops();
 			d("freeTroops: ", freeTroops);
-			for (Factory fac:enemyFacs) {
+			for (Factory fac:lostFacs) {
 				int neededTroops = Math.max(fac.numCyb, fac.calcEffectiveNumCyb); 
 				if (neededTroops < freeTroops) {
 					freeTroops = freeTroops - neededTroops - 1; 
@@ -252,36 +224,6 @@ class Player04BombR63 {
 			}
 		}
 		
-		private void sendBombs() {
-			if (bombsLeft <= 0) {
-				return;
-			}
-			if (lastOwnBomb != null) {
-				return;
-			}
-			List<Factory> enemyFacs = enemyFactories();
-			if (enemyFacs.isEmpty()) {
-				return;
-			}
-			Factory biggestEnemyFactory = enemyFacs.stream().max((f1, f2) -> {
-				return Integer.compare(f1.numCyb, f2.numCyb);} ).get();
-			if (biggestEnemyFactory.numCyb < 10) {
-				return;
-			}
-			Factory closestOwnFac = selectClosestToFactory(biggestEnemyFactory, ownFactories());
-			move.addMove("BOMB "+closestOwnFac.id+" "+biggestEnemyFactory.id);
-		}
-		
-		public Factory selectClosestToFactory(Factory srcFac, List<Factory> possibleFacs) {
-			List<WeightedFactory> result = new ArrayList<>(); 
-			for (Factory fac:possibleFacs) {
-				result.add(new WeightedFactory(fac, dist(srcFac, fac)));
-			}
-			return result.stream().max((wf1, wf2) -> {
-				return wf1.compareTo(wf2);
-			}).get().fac;
-		}
-
 		private List<Factory> sortClosestToOwnArea(Collection<Factory> unsortedFac) {
 			List<WeightedFactory> result = new ArrayList<>(); 
 			for (Factory fac:unsortedFac) {
@@ -358,18 +300,6 @@ class Player04BombR63 {
 				}
 			}
 			return cachedOwnFactories;
-		}
-		private List<Factory> enemyFactories() {
-			if (cachedEnemyFactories != null) {
-				return cachedEnemyFactories;
-			}
-			cachedEnemyFactories = new ArrayList<>();
-			for (Factory fac:factories) {
-				if (fac.isEnemy()) {
-					cachedEnemyFactories.add(fac);
-				}
-			}
-			return cachedEnemyFactories;
 		}
 		
 		private int calcSumFreeTroops() {
@@ -554,7 +484,7 @@ class Player04BombR63 {
         }
         public void destroy(World world) { 
         }
-		public void updateBomb(int owner, int from, int to, int eta) {
+		public void updateBomb(int owner, int from, int to, int numCyb, int eta) {
         	super.update(owner, from, to, eta);
 		}
         @Override public void nextTick(World world) {

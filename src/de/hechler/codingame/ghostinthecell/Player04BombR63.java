@@ -1,9 +1,14 @@
+package de.hechler.codingame.ghostinthecell;
 import java.util.*;
 import java.util.stream.Collectors;
 
-class Player07EscapeombsR4 {
+/**
+ * Auto-generated code below aims at helping you parse
+ * the standard input according to the problem statement.
+ **/
+class Player04BombR63 {
 
-	public static LogLevel LOG_LEVEL = LogLevel.INFO;
+	public static LogLevel LOG_LEVEL = LogLevel.DEBUG;
 	
     private final static boolean showLinks = false;
     private final static boolean showFactories = false;
@@ -52,13 +57,11 @@ class Player07EscapeombsR4 {
 		
 		public List<Factory> cachedOwnFactories;
 		public List<Factory> cachedEnemyFactories;
-		public List<Factory> cachedNeutralFactories;
 		
     	public PHASE phase;
     	
     	public int bombsLeft;
     	public Bomb lastOwnBomb;
-    	public Bomb followUpBomb;
 		
 		public World(int numFactories) {
 			this.tick = 0;
@@ -72,7 +75,6 @@ class Player07EscapeombsR4 {
 			this.bombsLeft = 2;
 			this.cachedOwnFactories = null;
 			this.cachedEnemyFactories = null;
-			this.cachedNeutralFactories = null;
 		}
 		public void nextTick() {
 			tick += 1;
@@ -135,7 +137,6 @@ class Player07EscapeombsR4 {
 			bombs.put(bombId, bomb);
 			if (owner == 1) {
 				lastOwnBomb = bomb;
-				followUpBomb = bomb;
 				bombsLeft -= 1;
 			}
 		}
@@ -160,7 +161,6 @@ class Player07EscapeombsR4 {
 			}
 			cachedOwnFactories = null;
 			cachedEnemyFactories = null;
-			cachedNeutralFactories = null;
 		}
 		private void removeBomb(Bomb bomb) {
 			if (bomb == lastOwnBomb) {
@@ -213,8 +213,6 @@ class Player07EscapeombsR4 {
 		}
 		
 		private void calcBestInitMoves() {
-			escapeBombs();
-			sendBombs();
 			List<Factory> closestFacs = getClosestFactories(0);
 			d("closestFacs: ", closestFacs);
 			int freeTroops = calcSumFreeTroops();
@@ -241,14 +239,13 @@ class Player07EscapeombsR4 {
 		}
 		
 		private void calcBestPlayMoves() {
-			escapeBombs();
 			sendBombs();
 			List<Factory> enemyFacs = sortClosestToOwnArea(enemyFactories());
 			d("enemyFacs: ", enemyFacs);
 			int freeTroops = calcSumFreeTroops();
 			d("freeTroops: ", freeTroops);
 			for (Factory fac:enemyFacs) {
-				int neededTroops = Math.max(fac.numCyb, fac.calcEffectiveNumCyb)+5;   // +5r4r1r47r10, +4R40, +6R17R7R6, +7R13
+				int neededTroops = Math.max(fac.numCyb, fac.calcEffectiveNumCyb); 
 				if (neededTroops < freeTroops) {
 					freeTroops = freeTroops - neededTroops - 1; 
 					sendClosestTroops(fac, neededTroops+1);
@@ -256,59 +253,7 @@ class Player07EscapeombsR4 {
 			}
 		}
 		
-		private void escapeBombs() {
-			for (Bomb bomb:bombs.values()) {
-				if (bomb.isEnemy()) {
-					int bombStartFacId = bomb.from;
-					int bombDist = (tick - bomb.startTick)+1;
-					for (Factory fac:ownFactories()) {
-						if (dist(bombStartFacId, fac) == bombDist) {
-							escape(fac);
-						}
-					}
-				}
-			}
-		}
-		private void escape(Factory fac) {
-			d("escape: ", fac);
-			int num = fac.numCyb-1;
-			if (num <= 0) {
-				return;
-			}
-			//List<Factory> closestFacs = sortClosestToFactory(srcFac);
-			Factory targetFac = selectClosestOwnFactory(fac);
-			if (targetFac == null) {
-				targetFac = selectClosestEnemyFactory(fac);
-			}
-			if (targetFac == null) {
-				targetFac = selectClosestNeutralFactory(fac);
-			}
-			d("to: ", targetFac);
-			move.addMove("MOVE "+fac.id+" "+targetFac.id+" "+num);
-			fac.numCyb -= num;
-			fac.calcEffectiveNumCyb -= num;
-			targetFac.calcIncomingEnemy += num;
-			if (targetFac.isMine()) {
-				targetFac.calcEffectiveNumCyb += num;
-			}
-			else {
-				targetFac.calcEffectiveNumCyb -= num;
-			}
-			
-			
-		}
 		private void sendBombs() {
-			if (followUpBomb != null) {
-				Factory fromFac = getFactoy(followUpBomb.from);
-				if (fromFac.isMine() && (fromFac.numCyb > 1)) {
-					Factory toFac = getFactoy(followUpBomb.to);
-					move.addMove("MOVE "+fromFac.id+" "+toFac.id+" 1");
-					fromFac.numCyb -= 1;
-					fromFac.calcEffectiveNumCyb -= 1;
-					toFac.calcIncomingOwn += 1;
-				}
-				followUpBomb = null;
-			}
 			if (bombsLeft <= 0) {
 				return;
 			}
@@ -331,15 +276,9 @@ class Player07EscapeombsR4 {
 		public Factory selectClosestToFactory(Factory srcFac, List<Factory> possibleFacs) {
 			List<WeightedFactory> result = new ArrayList<>(); 
 			for (Factory fac:possibleFacs) {
-				if (fac == srcFac) {
-					continue;
-				}
 				result.add(new WeightedFactory(fac, dist(srcFac, fac)));
 			}
-			if (result.isEmpty()) {
-				return null;
-			}
-			return result.stream().min((wf1, wf2) -> {
+			return result.stream().max((wf1, wf2) -> {
 				return wf1.compareTo(wf2);
 			}).get().fac;
 		}
@@ -405,26 +344,9 @@ class Player07EscapeombsR4 {
 			}
 		}
 		
-		public List<Factory> findClosestFactories(Factory srcFac) {
-			List<Factory> unsorted = new ArrayList<>();
-			for (Factory fac:factories) {
-				if (fac != srcFac) {
-					unsorted.add(fac);
-				}
-			}
-			return sortClosestToFactory(srcFac, unsorted);
-		}
+
 		public List<Factory> findClosestOwnFactories(Factory srcFac) {
 			return sortClosestToFactory(srcFac, ownFactories());
-		}
-		public Factory selectClosestOwnFactory(Factory srcFac) {
-			return selectClosestToFactory(srcFac, ownFactories());
-		}
-		public Factory selectClosestEnemyFactory(Factory srcFac) {
-			return selectClosestToFactory(srcFac, enemyFactories());
-		}
-		public Factory selectClosestNeutralFactory(Factory srcFac) {
-			return selectClosestToFactory(srcFac, neutralFactories());
 		}
 		private List<Factory> ownFactories() {
 			if (cachedOwnFactories != null) {
@@ -449,18 +371,6 @@ class Player07EscapeombsR4 {
 				}
 			}
 			return cachedEnemyFactories;
-		}
-		private List<Factory> neutralFactories() {
-			if (cachedNeutralFactories != null) {
-				return cachedNeutralFactories;
-			}
-			cachedNeutralFactories = new ArrayList<>();
-			for (Factory fac:factories) {
-				if (fac.isNeutral()) {
-					cachedNeutralFactories.add(fac);
-				}
-			}
-			return cachedNeutralFactories;
 		}
 		
 		private int calcSumFreeTroops() {
@@ -578,9 +488,7 @@ class Player07EscapeombsR4 {
 			int oldOwner = owner;
 			owner = newOwner;
 			numCyb = newNumCyb;
-			if (newPaused==0) {
-				productivity = newProductivity;
-			}
+			productivity = newProductivity;
 			paused = newPaused;
 			if (oldOwner != newOwner) {
 				if (oldOwner == 1) {
@@ -688,7 +596,9 @@ class Player07EscapeombsR4 {
 	            int distance = in.nextInt();
 	            distances[factory1][factory2] = distance;
 	            distances[factory2][factory1] = distance;
-                _i(showLinks, "LINK: "+factory1+"->"+factory2+" ("+distance+")");
+	            if (showLinks) {
+	                i("LINK: "+factory1+"->"+factory2+" ("+distance+")");
+	            }
 	        }
 	
 	        World world = new World(factoryCount);
@@ -708,20 +618,28 @@ class Player07EscapeombsR4 {
 	                if (entityType.equals("FACTORY")) {
 	                	// owner, numCyb, productivity, paused
 	                    world.updateFactory(entityId, arg1, arg2, arg3, arg4);
-                        _i(showFactories, world.getFactoy(entityId));
+	                    if (showFactories) {
+	                        i(world.getFactoy(entityId));
+	                    }
 	                }
 	                else if (entityType.equals("TROOP"))  { 
 	                	// owner, from, to, numCyb, eta
 	                	world.updateTroop(entityId, arg1, arg2, arg3, arg4, arg5);
-	                    _i(showTroops, world.getTroop(entityId));
+	                    if (showTroops) {
+	                        i(world.getTroop(entityId));
+	                    }
 	                }
 	                else if (entityType.equals("BOMB"))  { 
 	                    // owner, src, dest, eta
 	                	world.updateBomb(entityId, arg1, arg2, arg3, arg4);
-	                    _i(showBombs, world.getBomb(entityId));
+	                    if (showBombs) {
+	                        i(world.getBomb(entityId));
+	                    }
 	                }
 	                else { 
-	                    _i(showLOthers, entityType+"->"+entityId+" ("+arg1+","+arg2+","+arg3+","+arg4+","+arg5+")");
+	                    if (showLOthers) {
+	                        i(entityType+"->"+entityId+" ("+arg1+","+arg2+","+arg3+","+arg4+","+arg5+")");
+	                    }
 	                }
 	            }
 	
@@ -748,9 +666,6 @@ class Player07EscapeombsR4 {
 
 
     
-    public static void _d(boolean show, Object... objs) { if (show) log(LogLevel.DEBUG, objs); }
-    public static void _i(boolean show, Object... objs) { if (show) log(LogLevel.INFO, objs); }
-    public static void _e(boolean show, Object... objs) { if (show) log(LogLevel.ERROR, objs); }
     public static void d(Object... objs) { log(LogLevel.DEBUG, objs); }
     public static void i(Object... objs) { log(LogLevel.INFO, objs); }
     public static void e(Object... objs) { log(LogLevel.ERROR, objs); }

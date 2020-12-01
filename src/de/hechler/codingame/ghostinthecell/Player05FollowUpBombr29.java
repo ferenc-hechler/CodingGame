@@ -1,11 +1,18 @@
+package de.hechler.codingame.ghostinthecell;
 import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Auto-generated code below aims at helping you parse
- * the standard input according to the problem statement.
+ * 
+ * seed=290265141
+ * 
+ * seed=51334912
+ * seed=196039244
+ * seed=814969575
+ * 
+ * https://www.codingame.com/share-replay/512099216
  **/
-class Player03r479 {
+class Player05FollowUpBombr29 {
 
 	public static LogLevel LOG_LEVEL = LogLevel.DEBUG;
 	
@@ -58,6 +65,10 @@ class Player03r479 {
 		public List<Factory> cachedEnemyFactories;
 		
     	public PHASE phase;
+    	
+    	public int bombsLeft;
+    	public Bomb lastOwnBomb;
+    	public Bomb followUpBomb;
 		
 		public World(int numFactories) {
 			this.tick = 0;
@@ -68,6 +79,7 @@ class Player03r479 {
 			this.move = new Move();
 			this.phase = PHASE.INIT;
 			this.lostFactories = new HashSet<>();
+			this.bombsLeft = 2;
 			this.cachedOwnFactories = null;
 			this.cachedEnemyFactories = null;
 		}
@@ -121,8 +133,19 @@ class Player03r479 {
 		public void updateBomb(int bombId, int owner, int from, int to, int eta) {
 			Bomb bomb = bombs.get(bombId);
 			if (bomb == null) {
-				bomb = new Bomb(this, bombId, owner, from, to, eta);
-				bombs.put(bombId, bomb);
+				initBomb(bombId, owner, from, to, eta);
+			}
+			else {
+				bomb.updateBomb(owner, from, to, eta);
+			}
+		}
+		private void initBomb(int bombId, int owner, int from, int to, int eta) {
+			Bomb bomb = new Bomb(this, bombId, owner, from, to, eta);
+			bombs.put(bombId, bomb);
+			if (owner == 1) {
+				lastOwnBomb = bomb;
+				followUpBomb = bomb;
+				bombsLeft -= 1;
 			}
 		}
 		public void cleanup() {
@@ -148,6 +171,10 @@ class Player03r479 {
 			cachedEnemyFactories = null;
 		}
 		private void removeBomb(Bomb bomb) {
+			if (bomb == lastOwnBomb) {
+				e("remove: ", lastOwnBomb);
+				lastOwnBomb = null;
+			}
 			bomb.destroy(this);
 			bombs.remove(bomb.id);
 		}
@@ -194,6 +221,7 @@ class Player03r479 {
 		}
 		
 		private void calcBestInitMoves() {
+			sendBombs();
 			List<Factory> closestFacs = getClosestFactories(0);
 			d("closestFacs: ", closestFacs);
 			int freeTroops = calcSumFreeTroops();
@@ -220,6 +248,7 @@ class Player03r479 {
 		}
 		
 		private void calcBestPlayMoves() {
+			sendBombs();
 			List<Factory> enemyFacs = sortClosestToOwnArea(enemyFactories());
 			d("enemyFacs: ", enemyFacs);
 			int freeTroops = calcSumFreeTroops();
@@ -233,6 +262,47 @@ class Player03r479 {
 			}
 		}
 		
+		private void sendBombs() {
+			if (followUpBomb != null) {
+				Factory fromFac = getFactoy(followUpBomb.from);
+				if (fromFac.isMine() && (fromFac.numCyb > 1)) {
+					Factory toFac = getFactoy(followUpBomb.to);
+					move.addMove("MOVE "+fromFac.id+" "+toFac.id+" 1");
+					fromFac.numCyb -= 1;
+					fromFac.calcEffectiveNumCyb -= 1;
+					toFac.calcIncomingOwn += 1;
+				}
+				followUpBomb = null;
+			}
+			if (bombsLeft <= 0) {
+				return;
+			}
+			if (lastOwnBomb != null) {
+				return;
+			}
+			List<Factory> enemyFacs = enemyFactories();
+			if (enemyFacs.isEmpty()) {
+				return;
+			}
+			Factory biggestEnemyFactory = enemyFacs.stream().max((f1, f2) -> {
+				return Integer.compare(f1.numCyb, f2.numCyb);} ).get();
+			if (biggestEnemyFactory.numCyb < 10) {
+				return;
+			}
+			Factory closestOwnFac = selectClosestToFactory(biggestEnemyFactory, ownFactories());
+			move.addMove("BOMB "+closestOwnFac.id+" "+biggestEnemyFactory.id);
+		}
+		
+		public Factory selectClosestToFactory(Factory srcFac, List<Factory> possibleFacs) {
+			List<WeightedFactory> result = new ArrayList<>(); 
+			for (Factory fac:possibleFacs) {
+				result.add(new WeightedFactory(fac, dist(srcFac, fac)));
+			}
+			return result.stream().max((wf1, wf2) -> {
+				return wf1.compareTo(wf2);
+			}).get().fac;
+		}
+
 		private List<Factory> sortClosestToOwnArea(Collection<Factory> unsortedFac) {
 			List<WeightedFactory> result = new ArrayList<>(); 
 			for (Factory fac:unsortedFac) {
@@ -505,7 +575,7 @@ class Player03r479 {
         }
         public void destroy(World world) { 
         }
-		public void updateBomb(int owner, int from, int to, int numCyb, int eta) {
+		public void updateBomb(int owner, int from, int to, int eta) {
         	super.update(owner, from, to, eta);
 		}
         @Override public void nextTick(World world) {
