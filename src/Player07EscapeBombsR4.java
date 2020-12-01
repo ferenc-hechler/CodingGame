@@ -1,7 +1,7 @@
 import java.util.*;
 import java.util.stream.Collectors;
 
-class Player {
+class Player07EscapeombsR4 {
 
 	public static LogLevel LOG_LEVEL = LogLevel.INFO;
 	
