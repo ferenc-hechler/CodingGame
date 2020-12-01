@@ -255,7 +255,7 @@ class Player06AttackPlus5r4 {
 			int freeTroops = calcSumFreeTroops();
 			d("freeTroops: ", freeTroops);
 			for (Factory fac:enemyFacs) {
-				int neededTroops = Math.max(fac.numCyb, fac.calcEffectiveNumCyb)+5; 
+				int neededTroops = Math.max(fac.numCyb, fac.calcEffectiveNumCyb)+5;   // +5r4r1r47r10, +4R40, +6R17R7R6, +7R13
 				if (neededTroops < freeTroops) {
 					freeTroops = freeTroops - neededTroops - 1; 
 					sendClosestTroops(fac, neededTroops+1);
