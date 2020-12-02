@@ -1,3 +1,4 @@
+package de.hechler.codingame.tictactoe;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -6,7 +7,7 @@ import java.util.Scanner;
  * Auto-generated code below aims at helping you parse
  * the standard input according to the problem statement.
  **/
-class Player {
+class Player03DepthTwoLook {
 
 	public static LogLevel LOG_LEVEL = LogLevel.DEBUG;
 	public enum LogLevel {TRACE, DEBUG, INFO, WARN, ERROR, FATAL}
