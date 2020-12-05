@@ -17,9 +17,10 @@ class Player {
 	public final static boolean showValidActions = false;
 	
 	
-	private static String PLAYBACK_FILE = "input/playback.txt";
+	private static String PLAYBACK_FILE = null;
 	private static boolean RECORD_INPUT = false;
-	
+    private static boolean CLEAR_RECORDS = false;
+
 	
 	public static class World {
 		public TicTacToe master; 
@@ -306,7 +307,9 @@ class Player {
 
         World world = new World();
         // game loop
+		int round = 0;
         while (true) {
+			round++;
             d("A: "+world);
             int opponentRow = in.nextInt();
             int opponentCol = in.nextInt();
@@ -326,12 +329,17 @@ class Player {
                 _i(showValidActions, "   (", row, ",", col, ")");
             }
             in.recordLinebreak();
+			round++;
 
+			if (round == 16) {
+				round = round;
+			}
+			
             // Write an action using System.out.println()
             // To debug: System.err.println("Debug messages...");
             
             if (opponentRow == -1) {
-            	world = world.createMove(1, 1, 1);
+            	world = world.createMove(4, 4, 1);
                 d("C: "+world);
             }
             else {
@@ -339,7 +347,9 @@ class Player {
                 d("D: "+world);
             }
             in.outputRecording();
-            // in.clear();
+            if (CLEAR_RECORDS) {
+                in.clear();
+            }
             System.out.println(world.lastRow+" "+world.lastCol);
         }
       }
