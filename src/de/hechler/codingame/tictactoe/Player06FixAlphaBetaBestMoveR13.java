@@ -9,7 +9,7 @@ import java.util.Scanner;
  * Auto-generated code below aims at helping you parse
  * the standard input according to the problem statement.
  **/
-class Player05AlphaBetaSearch {
+class Player06FixAlphaBetaBestMoveR13 {
 
 	public final static int KI_SEARCH_DEPTH = 4;
 	
@@ -94,7 +94,7 @@ class Player05AlphaBetaSearch {
 	    			if ((cutM != UNKNOWN_MEASURE) && (measure <= cutM)) {
 	    				return null;
 	    			}
-	    			if ((bestM != UNKNOWN_MEASURE) && (measure < bestM)) {
+	    			if ((bestM == UNKNOWN_MEASURE) || (measure < bestM)) {
 	    				bestMove = ownMove;
 	    				bestM = measure;
 	    			}
@@ -353,7 +353,7 @@ class Player05AlphaBetaSearch {
             in.recordLinebreak();
 			round++;
 
-			if (round >= 53) {
+			if (round >= 11) {
 				debug = true;
 			}
 			

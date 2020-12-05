@@ -1,3 +1,4 @@
+package de.hechler.codingame.tictactoe;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
@@ -8,7 +9,7 @@ import java.util.Scanner;
  * Auto-generated code below aims at helping you parse
  * the standard input according to the problem statement.
  **/
-class Player {
+class Player05AlphaBetaSearchR40 {
 
 	public final static int KI_SEARCH_DEPTH = 4;
 	
@@ -81,10 +82,9 @@ class Player {
     			if (player == 1) {          
     				// MAX
 	    			if ((cutM != UNKNOWN_MEASURE) && (measure >= cutM)) {
-	    				ownMove.setRecursiveMeasure(cutM-player);
-	    				return ownMove;
+	    				return null;
 	    			}
-	    			if ((bestM == UNKNOWN_MEASURE) || (measure > bestM)) {
+	    			if ((bestMove == null) || (measure > bestM)) {
 	    				bestMove = ownMove;
 	    				bestM = measure;
 	    			}
@@ -92,10 +92,9 @@ class Player {
     			else {                      
     				// MIN
 	    			if ((cutM != UNKNOWN_MEASURE) && (measure <= cutM)) {
-	    				ownMove.setRecursiveMeasure(cutM-player);
-	    				return ownMove;
+	    				return null;
 	    			}
-	    			if ((bestM == UNKNOWN_MEASURE) || (measure < bestM)) {
+	    			if ((bestM != UNKNOWN_MEASURE) && (measure < bestM)) {
 	    				bestMove = ownMove;
 	    				bestM = measure;
 	    			}
@@ -354,7 +353,7 @@ class Player {
             in.recordLinebreak();
 			round++;
 
-			if (round >= 17) {
+			if (round >= 53) {
 				debug = true;
 			}
 			
