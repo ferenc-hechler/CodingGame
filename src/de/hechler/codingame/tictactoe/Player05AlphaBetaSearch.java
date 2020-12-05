@@ -1,3 +1,4 @@
+package de.hechler.codingame.tictactoe;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
@@ -8,7 +9,7 @@ import java.util.Scanner;
  * Auto-generated code below aims at helping you parse
  * the standard input according to the problem statement.
  **/
-class Player {
+class Player05AlphaBetaSearch {
 
 	public final static int KI_SEARCH_DEPTH = 4;
 	
