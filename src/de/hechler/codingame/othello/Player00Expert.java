@@ -1,3 +1,4 @@
+package de.hechler.codingame.othello;
 import java.util.*;
 import java.io.*;
 import java.math.*;
@@ -6,7 +7,7 @@ import java.math.*;
  * Auto-generated code below aims at helping you parse
  * the standard input according to the problem statement.
  **/
-class Player {
+public class Player00Expert {
 
 //	........
 //	........
@@ -27,7 +28,6 @@ class Player {
     public static void main(String args[]) {
         Scanner in = new Scanner(System.in);
         int id = in.nextInt(); // id of your player.
-        System.err.println("ID: "+id);
         int boardSize = in.nextInt();
 
         // game loop
@@ -38,7 +38,7 @@ class Player {
             	System.err.println(line);
             }
             if (expert) {
-            	String enemyMoves = in.next();
+            	String enemyMoves = in.nextLine();
             	System.err.println(enemyMoves);
             }
             int actionCount = in.nextInt(); // number of legal actions for this turn.
