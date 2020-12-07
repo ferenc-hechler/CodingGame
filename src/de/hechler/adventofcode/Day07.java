@@ -187,7 +187,7 @@ public class Day07 {
 		int countShinyGolden = app.searchNumberShinyGolden();
 		System.out.println("part1: "+countShinyGolden);
 		int countInShiyGold = app.countBagsInShinyGolden();
-		System.out.println("part2: "+countInShiyGold);
+		System.out.println("part2: "+(countInShiyGold-1));
 	}
 
 
