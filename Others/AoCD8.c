@@ -4,10 +4,12 @@
 
 #define MAX_LINE 1000
 
+
 #define BEGIN_VM int a=0; int ip=__LINE__+1; int dup=0; int visited[MAX_LINE]; for (int i=0;i<MAX_LINE;i++) visited[i]=0;while (!dup) {
-#define nop(x) if (ip == __LINE__) { dup = visited[ip]; if (!dup) {visited[ip]=1; ip++; continue; }}
-#define acc(x) if (ip == __LINE__) { dup = visited[ip]; if (!dup) {visited[ip]=1; a+=x; ip++; continue; }}
-#define jmp(x) if (ip == __LINE__) { dup = visited[ip]; if (!dup) {visited[ip]=1; ip+=x; continue; }}
+#define EXEC_IF_LINE(cmd) if (ip == __LINE__) { dup = visited[ip]; if (!dup) {visited[ip]=1; cmd; ip++; continue; }}
+#define nop(x) EXEC_IF_LINE()
+#define acc(x) EXEC_IF_LINE(a+=x)
+#define jmp(x) EXEC_IF_LINE(ip+=x-1)
 #define END_VM }
 
 int main(void) {
