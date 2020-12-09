@@ -4,7 +4,6 @@
 
 #define MAX_LINE 1000
 
-
 #define BEGIN_VM int a=0; int ip=__LINE__+1; int dup=0; int visited[MAX_LINE]; for (int i=0;i<MAX_LINE;i++) visited[i]=0;while (!dup) {
 #define EXEC_IF_LINE(cmd) if (ip == __LINE__) { dup = visited[ip]; if (!dup) {visited[ip]=1; cmd; ip++; continue; }}
 #define nop(x) EXEC_IF_LINE()
