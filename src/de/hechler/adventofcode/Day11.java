@@ -70,7 +70,7 @@ public class Day11 {
 
 		boolean changed = true;
 		while (changed) {
-			changed = fillSeats();
+			changed = fillVisibleSeats();
 			if (changed) {
 				System.out.println();
 				showSeats();
@@ -149,6 +149,83 @@ public class Day11 {
 		}
 		return 0;
 	}
+
+	private static boolean fillVisibleSeats() {
+		int[][] newSeats = new int[height][width];
+		for (int y=0; y<height; y++) {
+			for (int x=0; x<width; x++) {
+				if (seats[y][x] == 0) {
+					continue;
+				}
+				boolean isOccupied = seats[y][x] == 2;
+				int numberVisible = getVisibleSeatsOccupied(x, y);
+				if (isOccupied) {
+					if (numberVisible >= 5) {
+						newSeats[y][x] = 1;
+					}
+					else {
+						newSeats[y][x] = 2;
+					}
+				}
+				else {   // empty
+					if (numberVisible==0) {
+						newSeats[y][x] = 2;
+					}
+					else {
+						newSeats[y][x] = 1;
+					}
+ 				}
+			}
+			
+		}
+		int count = 0;
+		for (int y=0; y<height; y++) {
+			for (int x=0; x<width; x++) {
+				if (seats[y][x] != newSeats[y][x]) {
+					seats = newSeats;
+					return true;
+				}
+				if (seats[y][x] == 2) {
+					count += 1;
+				}
+			}
+		}
+		System.out.println("RESULT: " + count);
+		return false;
+	}
+
+
+	private static int getVisibleSeatsOccupied(int x, int y) {
+		int result = 0;
+		result += checkVisibleOccupied(x, y, -1, -1);
+		result += checkVisibleOccupied(x, y,  0, -1);
+		result += checkVisibleOccupied(x, y, +1, -1);
+		result += checkVisibleOccupied(x, y, -1,  0);
+		result += checkVisibleOccupied(x, y, +1,  0);
+		result += checkVisibleOccupied(x, y, -1, +1);
+		result += checkVisibleOccupied(x, y,  0, +1);
+		result += checkVisibleOccupied(x, y, +1, +1);
+		return result;
+	}
+
+
+
+	private static int checkVisibleOccupied(int startX, int startY, int dx, int dy) {
+		int x = startX+dx;
+		int y = startY+dy;
+		while ((x>=0) && (x<width) && (y>=0) && (y<height)) {
+			if (seats[y][x] == 2) {
+				return 1;
+			}
+			if (seats[y][x] == 1) {
+				return 0;
+			}
+			x += dx;
+			y += dy;
+		}
+		return 0;
+	}
+
 
 
 	final static String[] symbol = {".", "L", "#"}; 
