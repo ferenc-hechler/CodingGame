@@ -55,6 +55,8 @@ public class Day14 {
 	public static void mainPart2() throws FileNotFoundException {
 		Map<Long, Long> memory = new HashMap<>();
 		try (Scanner scanner = new Scanner(new File("input/day14.txt"))) {
+			List<Integer> bitPos = new ArrayList<>();
+			String mask = ""; 
 			long filterMask = 0;
 			long overwriteValue = 0;
 			long invFilterMask = ((1L << 36)-1) ^ filterMask;
@@ -62,28 +64,28 @@ public class Day14 {
 			while (scanner.hasNext()) {
 				String line = scanner.nextLine();
 				if (line.matches(MASK_RX)) {
-					String mask = line.replaceFirst(MASK_RX, "$1");
+					mask = line.replaceFirst(MASK_RX, "$1");
 					filterMask = Long.parseLong(mask.replace('X', '1'), 2);
 					invFilterMask = ((1L << 36)-1) ^ filterMask;
 					overwriteValue = Long.parseLong(mask.replace('X', '0'), 2);
-					List<Integer> bitPos = new ArrayList<>();
+					bitPos.clear();
 					int pos = mask.indexOf('X');
 					while (pos >= 0) {
-						bitPos.add(mask.length()-pos);
+						System.out.print((mask.length()-1-pos)+",");
+						bitPos.add(mask.length()-1-pos);
 						pos = mask.indexOf('X', pos+1);
 					}
-					
-					System.out.println(mask);
+					System.out.println();
 					continue;
 				}
+				
 				if (!line.matches(MEM_RX)) {
 					throw new RuntimeException("line '"+line+"' does not match MEM-RX");
 				}
 				long addr = Long.parseLong(line.replaceFirst(MEM_RX, "$1"));
 				long value = Long.parseLong(line.replaceFirst(MEM_RX, "$2"));
-				long effValue = (value & invFilterMask) | overwriteValue;
-				System.out.println(addr+": "+effValue);
-				memory.put(addr, effValue);
+				long effAddr = (addr & invFilterMask) | overwriteValue;
+				fillMem(memory, effAddr, value, bitPos);
 			}
 			long sum = 0;
 			for (Long value:memory.values()) {
@@ -92,6 +94,21 @@ public class Day14 {
 			System.out.println("SUM: "+sum);
 		}
 	}
+
+	private static void fillMem(Map<Long, Long> memory, long addr, long value, List<Integer> bitPos) {
+		if (bitPos.isEmpty()) {
+			memory.put(addr, value);
+			System.out.println("  " + addr+": "+value);
+			return;
+		}
+		//long oldAddr = addr;
+		List<Integer> recBitPos = new ArrayList<>(bitPos);
+		Integer bit = recBitPos.remove(0);
+		fillMem(memory, addr, value, recBitPos);
+		addr = addr | (1L << bit);
+		fillMem(memory, addr, value, recBitPos);
+	}
+
 
 	public static void main(String[] args) throws FileNotFoundException {
 		mainPart2();
