@@ -14,157 +14,252 @@ import java.util.Set;
  */
 public class Day16 {
 
-	static class Cube {
-		int x;
-		int y;
-		int z;
-		public Cube(int x, int y, int z) {
-			this.x = x;
-			this.y = y;
-			this.z = z;
-		}
-		boolean isNeighbour(int cx, int cy, int cz) {
-			return (x>=cx-1) && (x<=cx+1)&&(y>=cy-1) && (y<=cy+1)&&(z>=cz-1) && (z<=cz+1); 
+	final static String RULE_RX = "([a-z ]+): (\\d+)-(\\d+) or (\\d+)-(\\d+)";
+	final static String TICKET_RX = "(\\d+)(,\\d+)*";
+
+	static class Rule {
+		String name;
+		int min1;
+		int max1;
+		int min2;
+		int max2;
+		boolean check(int n) {
+			return ((n>=min1) && (n<=max1)) || ((n>=min2) && (n<=max2)); 
 		}
 		@Override
 		public String toString() {
-			return "(" + x+ "," + y+ "," + z + ")";
-		}
-		@Override
-		public int hashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + x;
-			result = prime * result + y;
-			result = prime * result + z;
-			return result;
-		}
-		@Override
-		public boolean equals(Object obj) {
-			if (this == obj)
-				return true;
-			if (obj == null)
-				return false;
-			if (getClass() != obj.getClass())
-				return false;
-			Cube other = (Cube) obj;
-			if (x != other.x)
-				return false;
-			if (y != other.y)
-				return false;
-			if (z != other.z)
-				return false;
-			return true;
+			return name + "(" + min1 + "-" + max1 + ")/(" + min2 + "," + max2 + ")";
 		}
 	}
 
-	static Set<Cube> currentCubes;
-	static Set<Cube> nextCubes;
+	static List<Rule> rules = new ArrayList<>();
+	static Set<Rule>[] possibleRules;
 
 	public static void mainPart1() throws FileNotFoundException {
-		nextCubes = new LinkedHashSet<>();
-		try (Scanner scanner = new Scanner(new File("input/day17.txt"))) {
-			{
-				int z = 0;
-				int y = 0;
-				while (scanner.hasNext()) {
-					String line = scanner.nextLine();
-					if (!line.matches("^[.#]+$")) {
-						throw new RuntimeException("invalid line '"+line+"'");
-					}
-					for (int x=0; x<line.length(); x++) {
-						if (line.charAt(x) == '#') {
-							nextCubes.add(new Cube(x, y, z));
-						}
-					}
-					y++;
+		try (Scanner scanner = new Scanner(new File("input/day16.txt"))) {
+			while (scanner.hasNext()) {
+				String line = scanner.nextLine();
+				if (line.isEmpty()) {
+					break;
 				}
+				
+				if (!line.matches(RULE_RX)) {
+					throw new RuntimeException("invalid rule '"+line+"'");
+				}
+				Rule rule = new Rule();
+				rule.name = line.replaceFirst(RULE_RX, "$1");
+				rule.min1 = Integer.parseInt(line.replaceFirst(RULE_RX, "$2"));
+				rule.max1 = Integer.parseInt(line.replaceFirst(RULE_RX, "$3"));
+				rule.min2 = Integer.parseInt(line.replaceFirst(RULE_RX, "$4"));
+				rule.max2 = Integer.parseInt(line.replaceFirst(RULE_RX, "$5"));
+				rules.add(rule);
+				System.out.println(rule);
 			}
-			for (int tick=0; tick<6; tick++) {
-//				System.out.println("TICK: "+tick);
-//				System.out.println(nextCubes);
-				Cube minCube = new Cube(Integer.MAX_VALUE,Integer.MAX_VALUE,Integer.MAX_VALUE);
-				Cube maxCube = new Cube(Integer.MIN_VALUE,Integer.MIN_VALUE,Integer.MIN_VALUE);
-				findMinMax(nextCubes, minCube, maxCube);
-//				show(nextCubes, minCube, maxCube);
-				currentCubes = nextCubes;
-				nextCubes = new LinkedHashSet<>();
-				for (int z = minCube.z-1; z<=maxCube.z+1; z++) {
-					for (int y = minCube.y-1; y<=maxCube.y+1; y++) {
-						for (int x = minCube.x-1; x<=maxCube.x+1; x++) {
-							Set<Cube> neighbourCubes = findNeighbourCubes(currentCubes, x, y, z);
-							Cube cube = new Cube(x,y,z);
-							boolean active = neighbourCubes.remove(cube);
-							if (neighbourCubes.size() == 3) {
-								nextCubes.add(cube);
-							}
-							else if (active && neighbourCubes.size() == 2) {
-								nextCubes.add(cube);
-							}
-						}
+			if (!scanner.nextLine().equals("your ticket:")) {
+				throw new RuntimeException("missing your ticket:");
+			}
+			int[] myTicket = scanTicket(scanner.nextLine());
+			show(myTicket);
+			if (!scanner.nextLine().isEmpty()) {
+				throw new RuntimeException("missing seperator");
+			}
+			if (!scanner.nextLine().equals("nearby tickets:")) {
+				throw new RuntimeException("missing nearby tickets:");
+			}
+			int sumError = 0;
+			while (scanner.hasNext()) {
+				int[] nearbyTicket = scanTicket(scanner.nextLine());
+				show(nearbyTicket);
+				for (int n:nearbyTicket) {
+					if (matchingRule(n) == null) {
+						System.out.println("  "+n);
+						sumError += n;
 					}
 				}
+				
 			}
-			Cube minCube = new Cube(Integer.MAX_VALUE,Integer.MAX_VALUE,Integer.MAX_VALUE);
-			Cube maxCube = new Cube(Integer.MIN_VALUE,Integer.MIN_VALUE,Integer.MIN_VALUE);
-			findMinMax(nextCubes, minCube, maxCube);
-			show(nextCubes, minCube, maxCube);
-			System.out.println(nextCubes);
-			System.out.println(nextCubes.size());
+			System.out.println(sumError);
 		}
 	}
+
+	static int cnt;
+	static String info;
 	
-	private static void show(Set<Cube> cubes, Cube minCube, Cube maxCube) {
-		for (int z = minCube.z; z<=maxCube.z; z++) {
-			System.out.println("Z="+z);
-			for (int y = minCube.y; y<=maxCube.y; y++) {
-				for (int x = minCube.x; x<=maxCube.x; x++) {
-					if (cubes.contains(new Cube(x,y,z))) {
-						System.out.print("#");
-					}
-					else {
-						System.out.print(".");
-					}
-						
-					
+	public static void mainPart2() throws FileNotFoundException {
+		try (Scanner scanner = new Scanner(new File("input/day16.txt"))) {
+			while (scanner.hasNext()) {
+				String line = scanner.nextLine();
+				if (line.isEmpty()) {
+					break;
 				}
-				System.out.println();
+				
+				if (!line.matches(RULE_RX)) {
+					throw new RuntimeException("invalid rule '"+line+"'");
+				}
+				Rule rule = new Rule();
+				rule.name = line.replaceFirst(RULE_RX, "$1");
+				rule.min1 = Integer.parseInt(line.replaceFirst(RULE_RX, "$2"));
+				rule.max1 = Integer.parseInt(line.replaceFirst(RULE_RX, "$3"));
+				rule.min2 = Integer.parseInt(line.replaceFirst(RULE_RX, "$4"));
+				rule.max2 = Integer.parseInt(line.replaceFirst(RULE_RX, "$5"));
+				rules.add(rule);
+				System.out.println(rule);
+			}
+			if (!scanner.nextLine().equals("your ticket:")) {
+				throw new RuntimeException("missing your ticket:");
+			}
+			int[] myTicket = scanTicket(scanner.nextLine());
+			show(myTicket);
+			if (!scanner.nextLine().isEmpty()) {
+				throw new RuntimeException("missing seperator");
+			}
+			if (!scanner.nextLine().equals("nearby tickets:")) {
+				throw new RuntimeException("missing nearby tickets:");
+			}
+			System.out.println();
+			possibleRules = new Set[myTicket.length];
+			for (int i=0; i<myTicket.length; i++) {
+				possibleRules[i] = new LinkedHashSet<>(rules);
+			}
+			
+			cnt = 0;
+			while (scanner.hasNext()) {
+				cnt++;
+				int[] nearbyTicket = scanTicket(scanner.nextLine());
+				//show(nearbyTicket);
+				boolean hasError = false;
+				for (int n:nearbyTicket) {
+					if (matchingRule(n) == null) {
+						hasError = true;
+						// System.out.println("  ignored: "+n);
+						continue;
+					}
+				}
+				if (hasError) {
+					continue;
+				}
+				for (int i=0; i<nearbyTicket.length; i++) {
+					Set<Rule> matchingRules = matchingRules(nearbyTicket[i]);
+					info = "matching rules for "+nearbyTicket[i]+" are "+matchingRules;
+					reteinPR(i, matchingRules);
+					removeUniqueRuleFromOthers(i);
+				}
+			}
+		
+			long result = 1;
+			for (int i=0; i<myTicket.length; i++) {
+				if (possibleRules[i].size() != 1) {
+					throw new RuntimeException("unclear rule for index "+i+": matching="+possibleRules[i]);
+				}
+				Rule rule = possibleRules[i].iterator().next();
+				if (rule.name.startsWith("departure")) {
+						System.out.println("  "+i+": value="+myTicket[i]+", rule="+rule.name);
+						result = result * (long)myTicket[i];
+				}
+			}
+			System.out.println("RESULT: "+ result);
+		}
+	}
+
+	private static void removeUniqueRuleFromOthers(int i) {
+		if (possibleRules[i].size() == 1) {
+			for (int j=0; j<possibleRules.length; j++) {
+				if (i!=j) {
+					info = "removing rule "+possibleRules[i];
+					int oldSize = possibleRules[j].size();
+					removePR(j, possibleRules[i]);
+					int newSize = possibleRules[j].size();
+					if ((newSize == 1) && (oldSize > newSize)) {
+						removeUniqueRuleFromOthers(j);
+					}
+				}
 			}
 		}
 	}
 
-	private static void show(Set<Cube> nextCubes2) {
-		// TODO Auto-generated method stub
-		
+	static int TRACKING_INDEX = 1;
+	
+	private static void reteinPR(int fromPR, Set<Rule> retainRules) {
+		String oldRules = pr2str(fromPR); 
+		possibleRules[fromPR].retainAll(retainRules);
+		if (fromPR == TRACKING_INDEX) {
+			String newRules = pr2str(fromPR);
+			if (!newRules.equals(oldRules)) {
+				System.out.println("RETAINING: "+cnt+"  INFO="+info);
+				System.out.println("  before: "+oldRules);
+				System.out.println("  after : "+newRules);
+			}
+		}
 	}
 
-	private static Set<Cube> findNeighbourCubes(Set<Cube> cubes, int x, int y, int z) {
-		Set<Cube> result = new LinkedHashSet<>();
-		for (Cube cube:cubes) {
-			if (cube.isNeighbour(x, y, z)) {
-				result.add(cube);
+	private static void removePR(int fromPR, Set<Rule> removeSet) {
+		String oldRules = pr2str(fromPR); 
+		possibleRules[fromPR].removeAll(removeSet);
+		if (fromPR == TRACKING_INDEX) {
+			String newRules = pr2str(fromPR);
+			if (!newRules.equals(oldRules)) {
+				System.out.println("REMOVE: "+cnt+"  INFO="+info);
+				System.out.println("  before: "+oldRules);
+				System.out.println("  after : "+newRules);
+			}
+		}
+	}
+
+
+	private static String pr2str(int i) {
+		StringBuilder result = new StringBuilder();
+		String seperator = "";
+		for (Rule rule:possibleRules[i]) {
+			result.append(seperator).append(rule.name);
+			seperator = ", ";
+		}
+		return result.toString();
+	}
+
+	private static Rule matchingRule(int n) {
+		for (Rule rule:rules) {
+			if (rule.check(n)) {
+				return rule;
+			}
+		}
+		return null;
+	}
+
+	private static Set<Rule> matchingRules(int n) {
+		Set<Rule> result = new LinkedHashSet<>();
+		for (Rule rule:rules) {
+			if (rule.check(n)) {
+				result.add(rule);
 			}
 		}
 		return result;
 	}
 
-	private static void findMinMax(Set<Cube> cubes, Cube minCube, Cube maxCube) {
-		for (Cube cube:cubes) {
-			minCube.x = Math.min(minCube.x, cube.x);
-			minCube.y = Math.min(minCube.y, cube.y);
-			minCube.z = Math.min(minCube.z, cube.z);
-			maxCube.x = Math.max(maxCube.x, cube.x);
-			maxCube.y = Math.max(maxCube.y, cube.y);
-			maxCube.z = Math.max(maxCube.z, cube.z);
+
+	private static void show(int[] intArr) {
+		for (int i=0; i<intArr.length; i++) {
+			System.out.print(intArr[i]+",");
 		}
+		System.out.println();
 	}
 
-	public static void mainPart2() throws FileNotFoundException {
+
+	private static int[] scanTicket(String line) {
+		if (!line.matches(TICKET_RX)) {
+			throw new RuntimeException("invalid ticket format.");
+		}
+		String[] nums = line.split(",");
+		int[] result = new int[nums.length];
+		for (int i=0; i<nums.length; i++) {
+			result[i] = Integer.parseInt(nums[i]);
+		}
+		return result;
 	}
+
 
 
 	public static void main(String[] args) throws FileNotFoundException {
-		mainPart1();
+		mainPart2();
 	}
 
 	
