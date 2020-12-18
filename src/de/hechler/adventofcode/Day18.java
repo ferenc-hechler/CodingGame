@@ -105,11 +105,70 @@ public class Day18 {
 	}
 
 	public static void mainPart2() throws FileNotFoundException {
+		try (Scanner scanner = new Scanner(new File("input/day18.txt"))) {
+			long totalSum = 0;
+			while (scanner.hasNext()) {
+				String line = scanner.nextLine();
+				long sum = evaluate2(line);
+				System.out.println(line + " = "+sum);
+				totalSum += sum;
+			}
+			System.out.println("TOTAL: "+totalSum);
+		}
 	}
 	
 
+	static String FINAL_ADD_RX = "^(\\d+) [+] (\\d+)$"; 
+
+	private static long evaluate2(String line) {
+		line = line.trim();
+		int posOpenBracket = line.indexOf('(');
+		if (posOpenBracket != -1) {
+			int posClosingBracket = findClosingBracket(line, posOpenBracket+1);
+			String leftFragment = line.substring(0, posOpenBracket).trim();
+			String rightFragment = line.substring(posClosingBracket+1).trim();
+			long middleValue = evaluate2(line.substring(posOpenBracket+1, posClosingBracket));
+			String newLine = leftFragment+ " " + middleValue + " " +rightFragment;
+			return evaluate2(newLine);
+		}
+		if (line.matches(FINAL_ADD_RX)) {
+			long leftNum = Long.parseLong(line.replaceFirst(FINAL_ADD_RX, "$1"));
+			long rightNum = Long.parseLong(line.replaceFirst(FINAL_ADD_RX, "$2"));
+			return leftNum+rightNum;
+		}
+		int posAdd = line.indexOf('+');
+		if (posAdd != -1) {
+			int posOpBefore = line.lastIndexOf('*', posAdd-1);
+			int posMulAfter =  line.indexOf('*', posAdd+1);
+			int posAddAfter =  line.indexOf('+', posAdd+1);
+			int posOpAfter = Math.min(posMulAfter, posAddAfter);
+			if (posMulAfter == -1) {
+				posOpAfter = posAddAfter;
+			}
+			if (posAddAfter == -1) {
+				posOpAfter = posMulAfter;
+			}
+			if (posOpAfter == -1) {
+				posOpAfter = line.length();
+			}
+			String leftFragment = line.substring(0, posOpBefore+1).trim();
+			String rightFragment = line.substring(posOpAfter).trim();
+			long middleValue = evaluate2(line.substring(posOpBefore+1, posOpAfter));
+			String newLine = leftFragment+ " " + middleValue + " " +rightFragment;
+			return evaluate2(newLine);
+		}
+		String[] values = line.trim().split("[*]");
+		long result = 1;
+		for (String value:values) {
+			long v = Long.parseLong(value.trim());
+			result = result * v;
+		}
+		return result;
+	}
+
+
 	public static void main(String[] args) throws FileNotFoundException {
-		mainPart1();
+		mainPart2();
 	}
 
 	
