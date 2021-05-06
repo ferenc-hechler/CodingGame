@@ -9,7 +9,7 @@ import java.util.Scanner;
  * Auto-generated code below aims at helping you parse
  * the standard input according to the problem statement.
  **/
-class Player {
+class Player03_WIN_WOOD {
 
 
 	public static LogLevel LOG_LEVEL = LogLevel.DEBUG;
@@ -527,7 +527,7 @@ class Player {
 	public static void main(String args[]) {
 	  parseArgs(args);
 	  try (PlaybackScanner in = new PlaybackScanner()) {
-		  Player player = new Player();
+		  Player03_WIN_WOOD player = new Player03_WIN_WOOD();
 		  player.run(in);
 	  }
 	}
