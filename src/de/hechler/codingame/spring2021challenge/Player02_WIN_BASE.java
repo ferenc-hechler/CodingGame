@@ -2,7 +2,6 @@ package de.hechler.codingame.spring2021challenge;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import java.util.Scanner;
 
@@ -10,7 +9,7 @@ import java.util.Scanner;
  * Auto-generated code below aims at helping you parse
  * the standard input according to the problem statement.
  **/
-class Deprecated {
+class Player02_WIN_BASE {
 
 
 	public static LogLevel LOG_LEVEL = LogLevel.DEBUG;
@@ -26,6 +25,7 @@ class Deprecated {
 	public void run(PlaybackScanner in) {
         int numberOfCells = in.nextInt(); // 37
         d("#CELLS:", numberOfCells);
+        HexField.init();
         for (int i = 0; i < numberOfCells; i++) {
             int index = in.nextInt(); // 0 is the center cell, the next cells spiral outwards
             int richness = in.nextInt(); // 0 if the cell is unusable, 1-3 for usable cells
@@ -36,10 +36,14 @@ class Deprecated {
             int neigh4 = in.nextInt();
             int neigh5 = in.nextInt();
             d("  #", index, " rich:", richness, " neigh:(",neigh0,",",neigh1,",",neigh2,",",neigh3,",",neigh4,",",neigh5,")");
+            HexField.get(index).setRichness(richness);
+            HexField.get(index).setNeighbours(neigh0, neigh1, neigh2, neigh3, neigh4, neigh5);
         }
 
+        World world = new World();
         // game loop
         while (true) {
+            world.clear();
             int day = in.nextInt(); // the game lasts 24 days: 0-23
             int nutrients = in.nextInt(); // the base score you gain from the next COMPLETE action
             int sun = in.nextInt(); // your sun points
@@ -48,6 +52,7 @@ class Deprecated {
             int oppScore = in.nextInt(); // opponent's score
             boolean oppIsWaiting = in.nextInt() != 0; // whether your opponent is asleep until the next day
             d("DAY:", day, " nut:", nutrients, " sun:", sun, " score:", score, " (osun:", oppSun, " oscore:", oppScore, (oppIsWaiting?" WAIT":""),")");
+            world.setDayData(day, nutrients, sun, score, oppSun, oppScore, oppIsWaiting);
             int numberOfTrees = in.nextInt(); // the current amount of trees
             d("#TREES:", numberOfTrees);
             for (int i = 0; i < numberOfTrees; i++) {
@@ -56,6 +61,7 @@ class Deprecated {
                 boolean isMine = in.nextInt() != 0; // 1 if this is your tree
                 boolean isDormant = in.nextInt() != 0; // 1 if this tree is dormant
                 d("  #", cellIndex, " size:", size, (isMine?" X":" O"), (isDormant?" dorm":""));
+                HexField.get(cellIndex).addTree(isMine, size, isDormant);
             }
             int numberOfPossibleMoves = in.nextInt();
             if (in.hasNextLine()) {
@@ -66,13 +72,16 @@ class Deprecated {
                 String possibleMove = in.nextLine();
                 d("  ", possibleMove);
             }
+            i("\n"+world.showWorld());
 
-            // Write an action using System.out.println()
-            // To debug: System.err.println("Debug messages...");
-
-
+            in.outputRecording();
+            if (CLEAR_RECORDS) {
+                in.clear();
+            }
+            
             // GROW cellIdx | SEED sourceIdx targetIdx | COMPLETE cellIdx | WAIT <message>
-            System.out.println("WAIT");
+            String move = world.nextMove();
+            System.out.println(move);
         }
     }
 
@@ -145,6 +154,7 @@ class Deprecated {
 			if (id2hexfields != null) {
 				return;
 			}
+			id2hexfields = new HexField[37]; 
 			for (int i=0; i<37; i++) {
 				id2hexfields[i] = new HexField(i);
 			}
@@ -173,50 +183,118 @@ class Deprecated {
 					HexField.get(idW), HexField.get(idSW), HexField.get(idSE) 
 				};
 		}
+		public void addTree(boolean mine, int size, boolean dormant) {
+			this.owner = mine ? 1 : -1;
+			this.treeSize = size;
+			this.dormant = dormant;
+		}
 		public boolean hasNeighbour(HexDirection dir) {
 			return neighbours[dir.idx()] != null;
 		}
 		public HexField getNeighbour(HexDirection dir) {
 			return neighbours[dir.idx()];
 		}
+		public String display() {
+			if (owner == 0) {
+				return "<>";
+			}
+			if (owner == 1) {
+				return "T"+treeSize;
+			}
+			return "t"+treeSize;
+		}
+		public void clear() {
+			owner = 0;
+			treeSize = 0;
+			dormant = false;
+		}
+		public boolean isMine() {
+			return owner == 1;
+		}
 	}
 	
 	public static class World {
-
-		private static int[][] FIELD_MAPPING = {
-				
-	              				            { 25,  24,  23,  22,              -1,  -1,  -1},
-
-				                          { 26,  11,  10,   9,  21,              -1,  -1},
-
-				                        { 27,  12,   3,   2,   8,  20,             -1},
-
-				                      { 28,  13,   4,   0,   1,   7,  19},
-
-				    { -1,                 29,  14,   5,   6,  18,  36},
-
-				  { -1,  -1,                30,  15,  16,  17,  35},
-
-				{ -1,  -1,  -1,               31,  32,  33,  34}
-				  
-		};
-		private static Map<Integer, HexPos> mapIndex2HexPos;
-		private int[][] field = new int[7][7];
-
+		private int day;
+		private int nutrients;
+		private int sun;
+		private int score;
+		private int oppSun;
+		private int oppScore;
+		private boolean oppIsWaiting;
+		private HexField[] poles;
 		public World() {
-			init();
+			poles = new HexField[6];
+			poles[HexDirection.EAST.idx()] = HexField.get(19);
+			poles[HexDirection.NORTHEAST.idx()] = HexField.get(22);
+			poles[HexDirection.NORTHWEST.idx()] = HexField.get(25);
+			poles[HexDirection.WEST.idx()] = HexField.get(28);
+			poles[HexDirection.SOUTHWEST.idx()] = HexField.get(31);
+			poles[HexDirection.SOUTHEAST.idx()] = HexField.get(34);
 		}
-		public void init() {
-			if (mapIndex2HexPos!=null) {
-				return;
+		
+		public void clear() {
+			for (int id=0; id<37; id++) {
+				HexField.get(id).clear();
 			}
-			for (int row=0; row<7; row++) {
-				for (int col=0; col<7; col++) {
-					if (FIELD_MAPPING[row][col] != -1) {
-						mapIndex2HexPos.put(FIELD_MAPPING[row][col], new HexPos(row, col));
+		}
+
+		public void setDayData(int day, int nutrients, int sun, int score, int oppSun, int oppScore, boolean oppIsWaiting) {
+			this.day = day;
+			this.nutrients = nutrients;
+			this.sun = sun;
+			this.score = score;
+			this.oppSun = oppSun;
+			this.oppScore = oppScore;
+			this.oppIsWaiting = oppIsWaiting;
+		}
+
+		public String showWorld() {
+			StringBuilder result = new StringBuilder();
+			HexField currentHF = poles[HexDirection.NORTHWEST.idx()];
+			result.append("      ").append(generateRow(currentHF)).append("\n");
+			currentHF = currentHF.getNeighbour(HexDirection.SOUTHWEST);
+			result.append("    ").append(generateRow(currentHF)).append("\n");
+			currentHF = currentHF.getNeighbour(HexDirection.SOUTHWEST);
+			result.append("  ").append(generateRow(currentHF)).append("\n");
+			currentHF = currentHF.getNeighbour(HexDirection.SOUTHWEST);
+			result.append("").append(generateRow(currentHF)).append("\n");
+			currentHF = currentHF.getNeighbour(HexDirection.SOUTHEAST);
+			result.append("  ").append(generateRow(currentHF)).append("\n");
+			currentHF = currentHF.getNeighbour(HexDirection.SOUTHEAST);
+			result.append("    ").append(generateRow(currentHF)).append("\n");
+			currentHF = currentHF.getNeighbour(HexDirection.SOUTHEAST);
+			result.append("      ").append(generateRow(currentHF)).append("\n");
+			return result.toString();
+		}
+
+		private String generateRow(HexField hf) {
+			StringBuilder result = new StringBuilder();
+			while (hf != null) {
+				result.append(hf.display()).append(" ");
+				hf = hf.getNeighbour(HexDirection.EAST);
+			}			
+			return result.toString();
+		}
+
+		public String nextMove() {
+			if (sun < 4) {
+				return "WAIT";
+			}
+			int bestMove = -1;
+			int bestScore = -1;
+			for (int id=0; id<37; id++) {
+				if (HexField.get(id).isMine()) {
+					int score = HexField.get(id).richness;
+					if (score > bestScore) {
+						bestMove = id;
+						bestScore = score;
 					}
 				}
 			}
+			if (bestMove != -1) {
+				return "COMPLETE "+bestMove;
+			}
+			return "WAIT";
 		}
 	}
 	
@@ -396,7 +474,7 @@ class Deprecated {
 	public static void main(String args[]) {
 	  parseArgs(args);
 	  try (PlaybackScanner in = new PlaybackScanner()) {
-		  Deprecated player = new Deprecated();
+		  Player02_WIN_BASE player = new Player02_WIN_BASE();
 		  player.run(in);
 	  }
 	}
