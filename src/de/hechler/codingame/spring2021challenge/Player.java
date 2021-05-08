@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 
+import de.hechler.codingame.spring2021challenge.Player.World.SunResult;
+
 public class Player {
 
 	int FINAL_DAY = 23;
@@ -99,7 +101,9 @@ public class Player {
                 }
             }
             i("\n"+world.showWorld());
-
+            SunResult sunCalc = world.calcSun();
+            d("SUN: calc=", sunCalc.toString(), "nextSun=", sun, "/", oppSun);
+            
             in.outputRecording();
             if (CLEAR_RECORDS) {
                 in.clear();
@@ -176,6 +180,24 @@ public class Player {
 				return null;
 			}
 		}
+		public HexDirection invert() {
+			switch (this) {
+			case EAST:
+				return WEST;
+			case SOUTHEAST:
+				return NORTHWEST;
+			case SOUTHWEST:
+				return NORTHEAST;
+			case WEST:
+				return EAST;
+			case NORTHWEST:
+				return SOUTHEAST;
+			case NORTHEAST:
+				return SOUTHWEST;
+			default:
+				return null;
+			}
+		}
 	}
 	
 	public static class HexField {
@@ -242,14 +264,19 @@ public class Player {
 		public boolean isMine() {
 			return owner == 1;
 		}
+		public boolean isOpponent() {
+			return owner == -1;
+		}
 	}
 	
 	public static class World {
 		private int day;
 		private int nutrients;
 		private int sun;
+		private int lastSun;
 		private int score;
 		private int oppSun;
+		private int lastOppSun;
 		private int oppScore;
 		private boolean oppIsWaiting;
 		private HexField[] poles;
@@ -265,6 +292,8 @@ public class Player {
 			poles[HexDirection.SOUTHWEST.idx()] = HexField.get(31);
 			poles[HexDirection.SOUTHEAST.idx()] = HexField.get(34);
 			possibleSeedActions = new ArrayList<>();
+			lastSun = 0;
+			lastOppSun = 0;
 		}
 		
 		public void clear() {
@@ -272,6 +301,8 @@ public class Player {
 				HexField.get(id).clear();
 			}
 			possibleSeedActions.clear();
+			lastSun = sun;
+			lastOppSun = oppSun;
 		}
 
 		public void setDayData(int day, int nutrients, int sun, int score, int oppSun, int oppScore, boolean oppIsWaiting) {
@@ -283,6 +314,7 @@ public class Player {
 			this.oppSun = oppSun;
 			this.oppScore = oppScore;
 			this.oppIsWaiting = oppIsWaiting;
+
 			
 			this.sunDir = HexDirection.fromIdx(day%6);
 			i("DIRECTION = ", sunDir);
@@ -307,7 +339,66 @@ public class Player {
 			possibleSeedActions.add(new SeedAction(treeCellId, seedCellId));
 		}
 		
+		public static class SunResult {
+			public int sun;
+			public int oppSun;
+			public SunResult(int sun, int oppSun) {
+				this.sun = sun;
+				this.oppSun = oppSun;
+			}
+			public void addSun(int addSun) {
+				sun += addSun;
+			}
+			public void addOppSun(int addOppSun) {
+				oppSun += addOppSun;
+			}
+			public String toString() {
+				return sun + "/" +oppSun;
+			}
+		}
 		
+		public SunResult calcSun() {
+			SunResult result = new SunResult(lastSun, lastOppSun);
+			HexDirection poleDir = sunDir.invert();
+			HexField startField = poles[poleDir.idx()];
+			calcSunForRow(result, startField, sunDir);
+			HexDirection leftDir = sunDir.nextCounterClockDir();
+			for (HexField leftField = startField.getNeighbour(leftDir); leftField != null; leftField = leftField.getNeighbour(leftDir)) {
+				calcSunForRow(result, leftField, sunDir);
+			};
+			HexDirection rightDir = sunDir.nextClockDir();
+			for (HexField rightField = startField.getNeighbour(rightDir); rightField != null; rightField = rightField.getNeighbour(rightDir)) {
+				calcSunForRow(result, rightField, sunDir);
+			};
+			return result;
+		}
+
+		private void calcSunForRow(SunResult result, HexField hfStart, HexDirection dir) {
+			int shadowTree1Size = 0;
+			int shadowTree2Size = 0;
+			int shadowTree3Size = 0;
+			HexField hf = hfStart;
+			while (hf != null) {
+				int treeSize = hf.treeSize;
+				if (treeSize > 0) {
+					boolean spooky = (shadowTree3Size==3);
+					spooky = spooky || ((shadowTree2Size>=2) && (shadowTree2Size>=treeSize));
+					spooky = spooky || ((shadowTree1Size>=1) && (shadowTree1Size>=treeSize));
+					if (!spooky) {
+						if (hf.isMine()) {
+							result.addSun(treeSize);
+						}
+						else {
+							result.addOppSun(treeSize);
+						}
+					}
+				}				
+				shadowTree3Size = shadowTree2Size;
+				shadowTree2Size = shadowTree1Size;
+				shadowTree1Size = treeSize;
+				hf = hf.getNeighbour(dir);
+			}
+		}
 
 		public String showWorld() {
 			StringBuilder result = new StringBuilder();
@@ -385,6 +476,9 @@ public class Player {
 		}
 
 		public String findTreeToComplete(int minRichness) {
+			if ((day<20) && (nutrients == 20)) {
+				return null;
+			}
 			int numTree3 = countMineTreesWithSize(3);
 			if (numTree3 < MAX_NUM_TREES[3]) {
 				return null;
