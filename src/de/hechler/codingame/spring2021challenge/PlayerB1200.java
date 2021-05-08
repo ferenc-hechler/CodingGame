@@ -8,12 +8,14 @@ import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 
-class Player {
+class PlayerB1200 {
 
 	int FINAL_DAY = 20;
 	
-	private final static int[] MAX_NUM_TREES_START = {4, 4, 4, 4}; 
-	private final static int[] MAX_NUM_TREES_START_DAY18 = {0, 3, 3, 4}; 
+	private final static int[] MAX_NUM_TREES_START       = {2, 2, 2, 4}; 
+	private final static int[] MAX_NUM_TREES_START_DAY04 = {4, 4, 4, 4}; 
+	private final static int[] MAX_NUM_TREES_START_DAY08 = {6, 6, 6, 6}; 
+	private final static int[] MAX_NUM_TREES_START_DAY18 = {0, 3, 3, 6}; 
 	private final static int[] MAX_NUM_TREES_START_DAY20 = {0, 2, 2, 4}; 
 	private final static int[] MAX_NUM_TREES_START_DAY22 = {0, 0, 0, 2}; 
 	private final static int[] MAX_NUM_TREES_START_DAY23 = {0, 0, 0, 0}; 
@@ -274,8 +276,14 @@ class Player {
 			this.oppSun = oppSun;
 			this.oppScore = oppScore;
 			this.oppIsWaiting = oppIsWaiting;
-			if (day < 18) {
+			if (day < 4) {
 				MAX_NUM_TREES = MAX_NUM_TREES_START;
+			} 
+			if (day < 8) {
+				MAX_NUM_TREES = MAX_NUM_TREES_START_DAY04;
+			} 
+			if (day < 18) {
+				MAX_NUM_TREES = MAX_NUM_TREES_START_DAY08;
 			} 
 			else if (day < 20) {
 				MAX_NUM_TREES = MAX_NUM_TREES_START_DAY18;
@@ -638,7 +646,7 @@ class Player {
 	public static void main(String args[]) {
 	  parseArgs(args);
 	  try (PlaybackScanner in = new PlaybackScanner(System.in)) {
-		  Player player = new Player();
+		  PlayerB1200 player = new PlayerB1200();
 		  player.run(in);
 	  }
 	}

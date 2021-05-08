@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 
-class Player {
+class Player940 {
 
 	int FINAL_DAY = 20;
 	
@@ -638,7 +638,7 @@ class Player {
 	public static void main(String args[]) {
 	  parseArgs(args);
 	  try (PlaybackScanner in = new PlaybackScanner(System.in)) {
-		  Player player = new Player();
+		  Player940 player = new Player940();
 		  player.run(in);
 	  }
 	}
