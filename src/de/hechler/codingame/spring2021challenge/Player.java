@@ -3,14 +3,15 @@ package de.hechler.codingame.spring2021challenge;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 
-class Player {
+public class Player {
 
-	int FINAL_DAY = 20;
+	int FINAL_DAY = 23;
 	
 	private final static int[] MAX_NUM_TREES_START = {4, 4, 4, 4}; 
 	private final static int[] MAX_NUM_TREES_START_DAY18 = {0, 3, 3, 4}; 
@@ -41,6 +42,7 @@ class Player {
     }
     
 	public void run(PlaybackScanner in) {
+		// DbgLog.initErr(System.err);
         int numberOfCells = in.nextInt(); // 37
         d("#CELLS:", numberOfCells);
         HexField.init();
@@ -126,7 +128,12 @@ class Player {
 		WEST(3),
 		SOUTHWEST(4),
 		SOUTHEAST(5);
+		
+		private final static HexDirection[] COUNTERCLOCKROT = { EAST, NORTHEAST, NORTHWEST, WEST, SOUTHWEST, SOUTHEAST };     
+		public static HexDirection fromIdx(int idx) { return COUNTERCLOCKROT[idx]; }
+		
 		private int dirIdx;
+		
 		HexDirection(int dirIdx) {
 			this.dirIdx=dirIdx;
 		}
@@ -223,9 +230,9 @@ class Player {
 				return "<>";
 			}
 			if (owner == 1) {
-				return "T"+treeSize;
+				return "+"+treeSize;
 			}
-			return "t"+treeSize;
+			return "-"+treeSize;
 		}
 		public void clear() {
 			owner = 0;
@@ -248,6 +255,7 @@ class Player {
 		private HexField[] poles;
 		private List<SeedAction> possibleSeedActions;
 		private int[] MAX_NUM_TREES; 
+		private HexDirection sunDir;
 		public World() {
 			poles = new HexField[6];
 			poles[HexDirection.EAST.idx()] = HexField.get(19);
@@ -267,6 +275,7 @@ class Player {
 		}
 
 		public void setDayData(int day, int nutrients, int sun, int score, int oppSun, int oppScore, boolean oppIsWaiting) {
+			d("DAY = ", day);
 			this.day = day;
 			this.nutrients = nutrients;
 			this.sun = sun;
@@ -274,6 +283,9 @@ class Player {
 			this.oppSun = oppSun;
 			this.oppScore = oppScore;
 			this.oppIsWaiting = oppIsWaiting;
+			
+			this.sunDir = HexDirection.fromIdx(day%6);
+			i("DIRECTION = ", sunDir);
 			if (day < 18) {
 				MAX_NUM_TREES = MAX_NUM_TREES_START;
 			} 
@@ -319,7 +331,7 @@ class Player {
 		private String generateRow(HexField hf) {
 			StringBuilder result = new StringBuilder();
 			while (hf != null) {
-				result.append(hf.display()).append(" ");
+				result.append(hf.display()).append("  ");
 				hf = hf.getNeighbour(HexDirection.EAST);
 			}			
 			return result.toString();
@@ -586,9 +598,9 @@ class Player {
 		private MyRandom() {
 			if (MY_RANDOM_SEED == 0) {
 				MY_RANDOM_SEED = System.currentTimeMillis();
-				logAlways("created new MY_RANDOM_SEED = "+MY_RANDOM_SEED+"L");
+				DbgLog.logAlways("created new MY_RANDOM_SEED = "+MY_RANDOM_SEED+"L");
 			} else {
-				logAlways("using given MY_RANDOM_SEED = "+MY_RANDOM_SEED+"L");
+				DbgLog.logAlways("using given MY_RANDOM_SEED = "+MY_RANDOM_SEED+"L");
 			}
 			rand = new Random(MY_RANDOM_SEED);
 		}
@@ -607,41 +619,60 @@ class Player {
 		}
 	};
 	
-	
-	
-    public static void _d(boolean show, Object... objs) { if (show) log(LogLevel.DEBUG, objs); }
-    public static void _i(boolean show, Object... objs) { if (show) log(LogLevel.INFO, objs); }
-    public static void _e(boolean show, Object... objs) { if (show) log(LogLevel.ERROR, objs); }
-    public static void d(Object... objs) { log(LogLevel.DEBUG, objs); }
-    public static void i(Object... objs) { log(LogLevel.INFO, objs); }
-    public static void e(Object... objs) { log(LogLevel.ERROR, objs); }
-    public static void log(LogLevel lvl, Object... objs) {
-    	if (lvl.ordinal() >= LOG_LEVEL.ordinal()) {
-    		System.err.print("["+lvl+"] ");
-    		logAlways(objs);
-    	}
-    }
-    public static void logAlways(Object... objs) {
-    	if (objs.length == 0) {
-    		return;
-    	}
-    	StringBuilder result = new StringBuilder();
-    	for (Object obj:objs) {
-    		if (obj == null) {
-    			obj = "<null>";
+	public static class DbgLog {
+		public static PrintStream sysdbgGui = null;
+		public static void initDbgLogGui(PrintStream sdg) {sysdbgGui = sdg; };
+		public static PrintStream sysdbgDirect = null;
+		public static void initDbgLogDirect(PrintStream sdd) {
+			if (sdd != sysdbgGui) {
+				sysdbgDirect = sdd; 
+			}
+		};
+	    public static void log(LogLevel lvl, Object... objs) {
+	    	if (lvl.ordinal() >= LOG_LEVEL.ordinal()) {
+	    		sysdbgGui.print("["+lvl+"] ");
+	    		if (sysdbgDirect != null) {
+	    			sysdbgDirect.print("["+lvl+"] ");
+	    		}
+	    		logAlways(objs);
+	    	}
+	    }
+	    public static void logAlways(Object... objs) {
+	    	if (objs.length == 0) {
+	    		return;
+	    	}
+	    	StringBuilder result = new StringBuilder();
+	    	for (Object obj:objs) {
+	    		if (obj == null) {
+	    			obj = "<null>";
+	    		}
+	    		result.append(obj.toString());
+	    	}
+	    	// System.err.println(result.toString());
+	    	sysdbgGui.println(result.toString());
+    		if (sysdbgDirect != null) {
+    			sysdbgDirect.println(result.toString());
     		}
-    		result.append(obj.toString());
-    	}
-    	System.err.println(result.toString());
-    }
- 
-	public static void main(String args[]) {
-	  parseArgs(args);
-	  try (PlaybackScanner in = new PlaybackScanner(System.in)) {
-		  Player player = new Player();
-		  player.run(in);
-	  }
+	    }
 	}
-    
+	
+    public static void _d(boolean show, Object... objs) { if (show) DbgLog.log(LogLevel.DEBUG, objs); }
+    public static void _i(boolean show, Object... objs) { if (show) DbgLog.log(LogLevel.INFO, objs); }
+    public static void _e(boolean show, Object... objs) { if (show) DbgLog.log(LogLevel.ERROR, objs); }
+    public static void d(Object... objs) { DbgLog.log(LogLevel.DEBUG, objs); }
+    public static void i(Object... objs) { DbgLog.log(LogLevel.INFO, objs); }
+    public static void e(Object... objs) { DbgLog.log(LogLevel.ERROR, objs); }
+ 
+	private final static PrintStream origSysErr = System.err;
+
+	public static void main(String args[]) {
+		DbgLog.initDbgLogGui(System.err);
+		DbgLog.initDbgLogDirect(origSysErr);
+		parseArgs(args);
+		try (PlaybackScanner in = new PlaybackScanner(System.in)) {
+			Player player = new Player();
+			player.run(in);
+		}
+	}    
     
 }
