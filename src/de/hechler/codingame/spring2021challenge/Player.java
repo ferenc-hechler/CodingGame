@@ -6,10 +6,9 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.Scanner;
-
-import de.hechler.codingame.spring2021challenge.Player.World.SunResult;
 
 public class Player {
 
@@ -30,6 +29,38 @@ public class Player {
 	private static boolean RECORD_INPUT = false;
     private static boolean CLEAR_RECORDS = false;
 
+    private InputStream in;
+    public InputStream getIn()  { return ( in == null) ? System.in  : in;  };
+    private PrintStream out;
+    public PrintStream getOut() { return (out == null) ? System.out : out; };
+    private PrintStream err; 
+    public PrintStream getErr() { return (err == null) ? System.err : err; };
+    
+    public Player(InputStream in, PrintStream out, PrintStream err) {
+    	try {
+	    	this.in = in;
+	    	this.out = out;
+	    	this.err = err;
+	    	DbgLog.initDbgLogGui(err);
+	    	DbgLog.initDbgLogDirect(System.err);
+	    	try (PlaybackScanner psin = new PlaybackScanner(in)) {
+	    		run(psin);
+	    	}
+    	}
+    	catch (NoSuchElementException e) {
+    		System.err.println("FINISHED");
+    		throw e;
+		}
+    	catch (RuntimeException e) {
+    		e.printStackTrace();
+    		throw e;
+		}
+    }
+
+    public Player() {
+    }
+
+    
     static class SeedAction {
     	public int seedCellId;
     	public int treeCellId;
@@ -42,6 +73,24 @@ public class Player {
 		}
     	
     }
+	static class SunResult {
+		public int sun;
+		public int oppSun;
+		public SunResult(int sun, int oppSun) {
+			this.sun = sun;
+			this.oppSun = oppSun;
+		}
+		public void addSun(int addSun) {
+			sun += addSun;
+		}
+		public void addOppSun(int addOppSun) {
+			oppSun += addOppSun;
+		}
+		public String toString() {
+			return "S:"+sun + "/OS:"+oppSun;
+		}
+	}
+	
     
 	public void run(PlaybackScanner in) {
 		// DbgLog.initErr(System.err);
@@ -85,6 +134,19 @@ public class Player {
                 d("  #", cellIndex, " size:", size, (isMine?" X":" O"), (isDormant?" dorm":""));
                 HexField.get(cellIndex).addTree(isMine, size, isDormant);
             }
+
+        	i("DAY: ", world.day, " TURN:", world.turnInDay, " SUNDIR: ", world.sunDir, "\n", world.showWorld());
+            if (world.turnInDay == 0) {
+	            SunResult sunCalc = world.calcSun();
+	            d("SUN: calc=", sunCalc.toString(), ", real=", new SunResult(sun-world.lastSun, oppSun).toString());
+	            if ((sunCalc.sun != sun-world.lastSun)) {
+	            	e("DIFFERENCE S:"+(sun - world.lastSun)+"/OS:"+(oppSun - world.lastOppSun));
+	            	sunCalc = world.calcSun();
+	            	throw new RuntimeException("wrong calculation of sun in day " + day);
+	            	
+	            }
+            }
+            
             int numberOfPossibleMoves = in.nextInt();
             if (in.hasNextLine()) {
                 in.nextLine();
@@ -100,10 +162,6 @@ public class Player {
                 	world.addPossibleSeedAction(treeCellId, seedCellId);
                 }
             }
-            i("\n"+world.showWorld());
-            SunResult sunCalc = world.calcSun();
-            d("SUN: calc=", sunCalc.toString(), "nextSun=", sun, "/", oppSun);
-            
             in.outputRecording();
             if (CLEAR_RECORDS) {
                 in.clear();
@@ -111,7 +169,7 @@ public class Player {
             
             // GROW cellIdx | SEED sourceIdx targetIdx | COMPLETE cellIdx | WAIT <message>
             String move = world.nextMove();
-            System.out.println(move);
+            getOut().println(move);
         }
     }
 
@@ -271,6 +329,7 @@ public class Player {
 	
 	public static class World {
 		private int day;
+		private int turnInDay;
 		private int nutrients;
 		private int sun;
 		private int lastSun;
@@ -292,6 +351,8 @@ public class Player {
 			poles[HexDirection.SOUTHWEST.idx()] = HexField.get(31);
 			poles[HexDirection.SOUTHEAST.idx()] = HexField.get(34);
 			possibleSeedActions = new ArrayList<>();
+			day = -1;
+			turnInDay = -1;
 			lastSun = 0;
 			lastOppSun = 0;
 		}
@@ -306,7 +367,13 @@ public class Player {
 		}
 
 		public void setDayData(int day, int nutrients, int sun, int score, int oppSun, int oppScore, boolean oppIsWaiting) {
-			d("DAY = ", day);
+			d("DAY = ", day, " OLD:", this.day);
+			if (day == this.day) {
+				this.turnInDay += 1;
+			}
+			else {
+				this.turnInDay = 0;
+			}
 			this.day = day;
 			this.nutrients = nutrients;
 			this.sun = sun;
@@ -317,7 +384,7 @@ public class Player {
 
 			
 			this.sunDir = HexDirection.fromIdx(day%6);
-			i("DIRECTION = ", sunDir);
+			d("DIRECTION = ", sunDir);
 			if (day < 18) {
 				MAX_NUM_TREES = MAX_NUM_TREES_START;
 			} 
@@ -339,36 +406,33 @@ public class Player {
 			possibleSeedActions.add(new SeedAction(treeCellId, seedCellId));
 		}
 		
-		public static class SunResult {
-			public int sun;
-			public int oppSun;
-			public SunResult(int sun, int oppSun) {
-				this.sun = sun;
-				this.oppSun = oppSun;
-			}
-			public void addSun(int addSun) {
-				sun += addSun;
-			}
-			public void addOppSun(int addOppSun) {
-				oppSun += addOppSun;
-			}
-			public String toString() {
-				return sun + "/" +oppSun;
-			}
-		}
-		
 		public SunResult calcSun() {
-			SunResult result = new SunResult(lastSun, lastOppSun);
-			HexDirection poleDir = sunDir.invert();
+			return calcSun(new SunResult(0, 0), sunDir);
+		}
+
+		public SunResult calcSunForAllDirs() {
+			SunResult result = new SunResult(0, 0);
+			calcSun(result, HexDirection.EAST);
+			calcSun(result, HexDirection.NORTHEAST);
+			calcSun(result, HexDirection.NORTHWEST);
+			calcSun(result, HexDirection.WEST);
+			calcSun(result, HexDirection.SOUTHWEST);
+			calcSun(result, HexDirection.SOUTHEAST);
+			return result;
+		}
+
+
+		public SunResult calcSun(SunResult result, HexDirection sDir) {
+			HexDirection poleDir = sDir.invert();
 			HexField startField = poles[poleDir.idx()];
-			calcSunForRow(result, startField, sunDir);
-			HexDirection leftDir = sunDir.nextCounterClockDir();
+			calcSunForRow(result, startField, sDir);
+			HexDirection leftDir = sDir.nextCounterClockDir();
 			for (HexField leftField = startField.getNeighbour(leftDir); leftField != null; leftField = leftField.getNeighbour(leftDir)) {
-				calcSunForRow(result, leftField, sunDir);
+				calcSunForRow(result, leftField, sDir);
 			};
-			HexDirection rightDir = sunDir.nextClockDir();
+			HexDirection rightDir = sDir.nextClockDir();
 			for (HexField rightField = startField.getNeighbour(rightDir); rightField != null; rightField = rightField.getNeighbour(rightDir)) {
-				calcSunForRow(result, rightField, sunDir);
+				calcSunForRow(result, rightField, sDir);
 			};
 			return result;
 		}
