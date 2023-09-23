@@ -1,24 +1,17 @@
-package de.hechler.codingame.spring2021challenge;
-
+package de.hechler.codingame.spring2021challenge.bak;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 
-class PlayerB870 {
+/**
+ * Auto-generated code below aims at helping you parse
+ * the standard input according to the problem statement.
+ **/
+class Player01 {
 
-	int FINAL_DAY = 20;
-	
-	private final static int[] MAX_NUM_TREES_START       = {2, 2, 2, 4}; 
-	private final static int[] MAX_NUM_TREES_START_DAY04 = {4, 4, 4, 4}; 
-	private final static int[] MAX_NUM_TREES_START_DAY18 = {0, 3, 3, 4}; 
-	private final static int[] MAX_NUM_TREES_START_DAY20 = {0, 2, 2, 4}; 
-	private final static int[] MAX_NUM_TREES_START_DAY22 = {0, 0, 0, 2}; 
-	private final static int[] MAX_NUM_TREES_START_DAY23 = {0, 0, 0, 0}; 
-	
+
 	public static LogLevel LOG_LEVEL = LogLevel.DEBUG;
 	public static long MY_RANDOM_SEED = 0L;
 	
@@ -28,19 +21,7 @@ class PlayerB870 {
 	private static boolean RECORD_INPUT = false;
     private static boolean CLEAR_RECORDS = false;
 
-    static class SeedAction {
-    	public int seedCellId;
-    	public int treeCellId;
-		public SeedAction(int treeCellId, int seedCellId) {
-			this.treeCellId = treeCellId;
-			this.seedCellId = seedCellId;
-		}
-		public String toCommand() {
-			return "SEED "+treeCellId+" "+seedCellId;
-		}
-    	
-    }
-    
+
 	public void run(PlaybackScanner in) {
         int numberOfCells = in.nextInt(); // 37
         d("#CELLS:", numberOfCells);
@@ -90,12 +71,6 @@ class PlayerB870 {
             for (int i = 0; i < numberOfPossibleMoves; i++) {
                 String possibleMove = in.nextLine();
                 d("  ", possibleMove);
-                if (possibleMove.startsWith("SEED")) {
-                	String[] cmd_tree_seed = possibleMove.split(" ");
-                	int treeCellId = Integer.parseInt(cmd_tree_seed[1]);
-                	int seedCellId = Integer.parseInt(cmd_tree_seed[2]);
-                	world.addPossibleSeedAction(treeCellId, seedCellId);
-                }
             }
             i("\n"+world.showWorld());
 
@@ -247,8 +222,6 @@ class PlayerB870 {
 		private int oppScore;
 		private boolean oppIsWaiting;
 		private HexField[] poles;
-		private List<SeedAction> possibleSeedActions;
-		private int[] MAX_NUM_TREES; 
 		public World() {
 			poles = new HexField[6];
 			poles[HexDirection.EAST.idx()] = HexField.get(19);
@@ -257,14 +230,12 @@ class PlayerB870 {
 			poles[HexDirection.WEST.idx()] = HexField.get(28);
 			poles[HexDirection.SOUTHWEST.idx()] = HexField.get(31);
 			poles[HexDirection.SOUTHEAST.idx()] = HexField.get(34);
-			possibleSeedActions = new ArrayList<>();
 		}
 		
 		public void clear() {
 			for (int id=0; id<37; id++) {
 				HexField.get(id).clear();
 			}
-			possibleSeedActions.clear();
 		}
 
 		public void setDayData(int day, int nutrients, int sun, int score, int oppSun, int oppScore, boolean oppIsWaiting) {
@@ -275,31 +246,7 @@ class PlayerB870 {
 			this.oppSun = oppSun;
 			this.oppScore = oppScore;
 			this.oppIsWaiting = oppIsWaiting;
-			if (day < 4) {
-				MAX_NUM_TREES = MAX_NUM_TREES_START;
-			} 
-			if (day < 18) {
-				MAX_NUM_TREES = MAX_NUM_TREES_START_DAY04;
-			} 
-			else if (day < 20) {
-				MAX_NUM_TREES = MAX_NUM_TREES_START_DAY18;
-			}
-			else if (day < 22) {
-				MAX_NUM_TREES = MAX_NUM_TREES_START_DAY20;
-			}
-			else if (day < 23) {
-				MAX_NUM_TREES = MAX_NUM_TREES_START_DAY22;
-			}
-			else {
-				MAX_NUM_TREES = MAX_NUM_TREES_START_DAY23;
-			}
 		}
-		
-		public void addPossibleSeedAction(int treeCellId, int seedCellId) {
-			possibleSeedActions.add(new SeedAction(treeCellId, seedCellId));
-		}
-		
-		
 
 		public String showWorld() {
 			StringBuilder result = new StringBuilder();
@@ -330,143 +277,28 @@ class PlayerB870 {
 		}
 
 		public String nextMove() {
-			for (int minRichness = 3; minRichness>0; minRichness--) {
-				String result = findSeedsToSet(minRichness);
-				if (result != null) {
-					return result;
-				}
-				result = findTreeToComplete(minRichness);
-				if (result != null) {
-					return result;
-				}
-				result = findTreeToGrow(minRichness);
-				if (result != null) {
-					return result;
-				}
-			}
-			return "WAIT";
-		}
-		
-		public String findSeedsToSet(int minRichness) {
-			if (possibleSeedActions.isEmpty()) {
-				return null;
-			}
-			int numSeeds= countMineTreesWithSize(0);
-			if (numSeeds >= MAX_NUM_TREES[0]) {
-				return null;
-			}
-			if (sun < numSeeds) {
-				return "WAIT";
-			}
-			int bestScore = -1;
-			SeedAction bestSeedAction = null;
-			for (SeedAction posSeedAction:possibleSeedActions) {
-				int richness = HexField.get(posSeedAction.seedCellId).richness;
-				if (richness >= minRichness) {
-					int score = richness;
-					if (score > bestScore) {
-						bestScore = score;
-						bestSeedAction = posSeedAction;
-					}
-				}
-			}
-			if (bestSeedAction != null) {
-				return bestSeedAction.toCommand();
-			}
-			return null;
-		}
-
-		public String findTreeToComplete(int minRichness) {
-			int numTree3 = countMineTreesWithSize(3);
-			if (numTree3 < MAX_NUM_TREES[3]) {
-				return null;
-			}
-			int completeTree = findMineRichestTreeWithSizeAndMinRich(3, minRichness);
-			if (completeTree == -1) {
-				return null;
-			}
 			if (sun < 4) {
 				return "WAIT";
 			}
-			return "COMPLETE "+completeTree;
-		}
-
-		public String findTreeToGrow(int minRichness) {
-			int numTree3 = countMineTreesWithSize(3);
-			if (numTree3 < MAX_NUM_TREES[3]) {
-				int growTree = findMineRichestTreeWithSizeAndMinRich(2, minRichness);
-				if (growTree != -1) {
-					if (sun < 7 + numTree3) {
-						return "WAIT";
-					}
-					return "GROW "+growTree; 
-				}
-			}
-			int numTree2 = countMineTreesWithSize(2);
-			if (numTree2 < MAX_NUM_TREES[2]) {
-				int growTree = findMineRichestTreeWithSizeAndMinRich(1, minRichness);
-				if (growTree != -1) {
-					if (sun < 3 + numTree2) {
-						return "WAIT";
-					}
-					return "GROW "+growTree; 
-				}
-			}
-			int numTree1 = countMineTreesWithSize(1);
-			if (numTree1 < MAX_NUM_TREES[1]) {
-				int growTree = findMineRichestTreeWithSizeAndMinRich(0, minRichness);
-				if (growTree != -1) {
-					if (sun < 1 + numTree1) {
-						return "WAIT";
-					}
-					return "GROW "+growTree; 
-				}
-			}
-			return null;
-		}
-
-		public int countMineTreesWithSize(int size) {
-			int result = 0;
-			for (int id=0; id<37; id++) {
-				if (HexField.get(id).isMine() && (HexField.get(id).treeSize == size)) {
-					result += 1;
-				};
-			}
-			return result;
-		}
-
-		public int findMineRichestTreeWithSize(int size) {
-			return findMineRichestTreeWithSizeAndMinRich(size, 0);
-		}
-		
-		public int findMineRichestTreeWithSizeAndMinRich(int size, int minRichness) {
 			int bestMove = -1;
 			int bestScore = -1;
 			for (int id=0; id<37; id++) {
-				HexField hf = HexField.get(id);
-				if (hf.isMine() && (!hf.dormant) && (hf.treeSize==size)) {
-					if (hf.richness >= minRichness) {
-						int score = hf.richness;
-						if (score > bestScore) {
-							bestMove = id;
-							bestScore = score;
-						}
+				if (HexField.get(id).isMine()) {
+					int score = HexField.get(id).richness;
+					if (score > bestScore) {
+						bestMove = id;
+						bestScore = score;
 					}
 				}
 			}
 			if (bestMove != -1) {
-				return bestMove;
+				return "COMPLETE "+bestMove;
 			}
-			return -1;
+			return "WAIT";
 		}
-
 	}
-
 	
     private static void parseArgs(String[] args) {
-    	if (args == null) {
-    		args = new String[0];
-    	}
     	for (String arg:args) {
     		if (arg.equals("-r")) {
     			RECORD_INPUT = true;
@@ -500,9 +332,9 @@ class PlayerB870 {
     	private Scanner scanner;
     	StringBuilder record;
     	
-    	public PlaybackScanner(InputStream in) {
+    	public PlaybackScanner() {
     		if (PLAYBACK_FILE == null) {
-    			scanner = new Scanner(in);
+    			scanner = new Scanner(System.in);
     		}
     		else {
     			try {
@@ -641,8 +473,8 @@ class PlayerB870 {
  
 	public static void main(String args[]) {
 	  parseArgs(args);
-	  try (PlaybackScanner in = new PlaybackScanner(System.in)) {
-		  PlayerB870 player = new PlayerB870();
+	  try (PlaybackScanner in = new PlaybackScanner()) {
+		  Player01 player = new Player01();
 		  player.run(in);
 	  }
 	}

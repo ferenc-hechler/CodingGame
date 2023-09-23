@@ -1,3 +1,4 @@
+package de.hechler.codingame.madpodracing;
 import java.util.*;
 import java.io.*;
 import java.math.*;

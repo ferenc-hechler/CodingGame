@@ -1,4 +1,4 @@
-package de.hechler.codingame.spring2021challenge;
+package de.hechler.codingame.spring2021challenge.bak;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.List;
@@ -9,7 +9,7 @@ import java.util.Scanner;
  * Auto-generated code below aims at helping you parse
  * the standard input according to the problem statement.
  **/
-class Player01 {
+class Player02_WIN_BASE {
 
 
 	public static LogLevel LOG_LEVEL = LogLevel.DEBUG;
@@ -474,7 +474,7 @@ class Player01 {
 	public static void main(String args[]) {
 	  parseArgs(args);
 	  try (PlaybackScanner in = new PlaybackScanner()) {
-		  Player01 player = new Player01();
+		  Player02_WIN_BASE player = new Player02_WIN_BASE();
 		  player.run(in);
 	  }
 	}
