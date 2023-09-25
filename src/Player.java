@@ -116,16 +116,43 @@ class Player {
 	}
 
 
-	private static double calcBreakDist(Pos curr, Pos targ, Pos next, double v) {
-    	if (next == null) {
-    		return 0;
-    	}
-		System.err.println("V:"+v);
-   	    Pos vn = next.sub(curr);
+	private static double calcBreakDist(Pos curr, Pos targ, Pos next, Pos move, double v) {
+		
+		if (v<300) {
+			return 0;
+		}
    	    Pos vt = targ.sub(curr);
-		double ang = Math.abs(vn.angle(vt)); 
-		double result = BREAK_FACTOR*v*ang/Math.PI;
-		System.err.println("VN:"+vn+" VT:"+vt+"ANG:"+(360.0*ang/2/Math.PI)+" RESULT:"+result);
+		double angMoveTarg = Math.abs(move.angle(vt));
+		System.err.println("VT:"+vt+" MV:"+move+" ANGMOV:"+(360.0*angMoveTarg/2/Math.PI));
+    	if (angMoveTarg*180.0/Math.PI>90.0) {
+    		return 999999; 
+    	}
+    	if (v>=0) {
+    		return 3*v;
+    	}
+    	if (next == null) {
+	    	if (angMoveTarg*180.0/Math.PI>90.0) {
+	    		System.err.println("RESULT:"+-1);
+	    		return -1; 
+	    	}
+	    	return 4*v;
+    	}
+
+   	    Pos vn = next.sub(curr);
+		double ang = Math.abs(vn.angle(vt));
+
+		double result;
+		if (ang*180.0/Math.PI<45.0) {
+			result = 0;
+		}
+		else if (angMoveTarg*180.0/Math.PI>90.0) {
+    		System.err.println("RESULT:"+-1);
+    		return -1; 
+    	}
+		else {
+			result = 4*v;
+		}
+		System.err.println("VN:"+vn+" ANG:"+(360.0*ang/2/Math.PI)+" RESULT:"+result);
 		return result;
 	}
 	
@@ -181,9 +208,12 @@ class Player {
             Pos target = correctDirection(pos, targetC, move);
             System.err.println("CORR:"+target+" rel:"+target.sub(targetC));
             
-            double breakDist = calcBreakDist(pos, target, nextTg, v);
+            double breakDist = calcBreakDist(pos, target, nextTg, move, v);
             speed = 100.0;
-            if (nextCheckpointDist < breakDist) {
+            if (breakDist == -1) {
+            	target = pos.sub(move);
+            }
+            else if (nextCheckpointDist < breakDist) {
                 speed = 5.0;
             }
             String speedStr = Integer.toString((int)speed);
