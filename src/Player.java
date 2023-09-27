@@ -4,8 +4,9 @@ import java.math.*;
 
 class Player {
 
-	public static double TARGET_RADIUS = 500.0; 
-	public static double BREAK_FACTOR = 5.0; 
+	static final double TARGET_RADIUS = 500.0;
+	static final double BREAK_FACTOR = 3.0;
+	static final double ANGLE_FACTOR = 0.95;
 	
     public static class Pos {
         public static final Pos POS0 = new Pos(0.0,0.0);
@@ -48,6 +49,9 @@ class Player {
         		result = result - 2*Math.PI;
         	}
         	return result;
+        }
+        public double degAngle(Pos other) {
+        	return 360*angle(other)/(2.0*Math.PI);
         }
 		@Override
 		public int hashCode() {
@@ -116,43 +120,16 @@ class Player {
 	}
 
 
-	private static double calcBreakDist(Pos curr, Pos targ, Pos next, Pos move, double v) {
-		
-		if (v<300) {
+	private static double calcBreakDist(Pos curr, Pos targ, Pos next, double v) {
+		System.err.println("V:"+v);
+		if (v<100.0) {
 			return 0;
 		}
-   	    Pos vt = targ.sub(curr);
-		double angMoveTarg = Math.abs(move.angle(vt));
-		System.err.println("VT:"+vt+" MV:"+move+" ANGMOV:"+(360.0*angMoveTarg/2/Math.PI));
-    	if (angMoveTarg*180.0/Math.PI>90.0) {
-    		return 999999; 
-    	}
-    	if (v>=0) {
-    		return 3*v;
-    	}
-    	if (next == null) {
-	    	if (angMoveTarg*180.0/Math.PI>90.0) {
-	    		System.err.println("RESULT:"+-1);
-	    		return -1; 
-	    	}
-	    	return 4*v;
-    	}
-
    	    Pos vn = next.sub(curr);
-		double ang = Math.abs(vn.angle(vt));
-
-		double result;
-		if (ang*180.0/Math.PI<45.0) {
-			result = 0;
-		}
-		else if (angMoveTarg*180.0/Math.PI>90.0) {
-    		System.err.println("RESULT:"+-1);
-    		return -1; 
-    	}
-		else {
-			result = 4*v;
-		}
-		System.err.println("VN:"+vn+" ANG:"+(360.0*ang/2/Math.PI)+" RESULT:"+result);
+   	    Pos vt = targ.sub(next);
+		double ang = Math.abs(vn.degAngle(vt)/180.0); 
+		double result = BREAK_FACTOR*v*ang;
+		System.err.println("VN:"+vn+" VT:"+vt+"ANG:"+ang+" RESULT:"+result);
 		return result;
 	}
 	
@@ -199,23 +176,30 @@ class Player {
             
             Pos nextTg = nextTarget.get(nextCheckpoint);
             System.err.println("CURR:"+pos+" next:"+nextCheckpoint+" next2:"+nextTg);
+            if (nextTg == null) {
+            	nextTg = new Pos(8000, 4500);
+            }
             
             Pos targetC = findClosestPos(pos, nextCheckpoint, nextTg, TARGET_RADIUS);
             if (nextTg != null) {
             	System.err.println("CLOSEST:"+targetC+" rel:"+targetC.sub(nextTg));
             }
             
-            Pos target = correctDirection(pos, targetC, move);
-            System.err.println("CORR:"+target+" rel:"+target.sub(targetC));
+//            Pos target = correctDirection(pos, targetC, move);
+//            System.err.println("CORR:"+target+" rel:"+target.sub(targetC));
+//            
+//            double breakDist = calcBreakDist(pos, target, nextTg, v);
+//            if (nextCheckpointDist < breakDist) {
+//                speed = 5.0;
+//            }
+            Pos target = targetC;
+            speed = calcSpeed(pos, nextCheckpoint, move, nextCheckpointAngle, v);
+
+            double breakDist = calcBreakDist(pos, nextCheckpoint, nextTg, v);
+            if (nextCheckpointDist<breakDist) {
+            	speed = 5;
+            }
             
-            double breakDist = calcBreakDist(pos, target, nextTg, move, v);
-            speed = 100.0;
-            if (breakDist == -1) {
-            	target = pos.sub(move);
-            }
-            else if (nextCheckpointDist < breakDist) {
-                speed = 5.0;
-            }
             String speedStr = Integer.toString((int)speed);
             if (!boosted) {
             	speedStr = "BOOST";
@@ -230,5 +214,27 @@ class Player {
             System.out.println(cmd);
         }
     }
+
+	private static double calcSpeed(Player.Pos pos, Player.Pos nextCheckpoint, Player.Pos move, int nextCheckpointAngle, double v) {
+		int ang = Math.abs(nextCheckpointAngle);
+		double result; 
+		if (ang<20.0) {
+			result = 100;
+		}
+		else if (ang<45.0) {
+			result = 100*ANGLE_FACTOR;
+		}
+		else if (ang<60) {
+			return 100*ANGLE_FACTOR*ANGLE_FACTOR;
+		}
+		else if (ang<90) {
+			return 100*ANGLE_FACTOR*ANGLE_FACTOR*ANGLE_FACTOR;
+		}
+		else {
+			return 5;
+		}
+		return result;
+	}
+
 
 }
