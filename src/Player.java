@@ -4,8 +4,8 @@ import java.math.*;
 
 class Player {
 
-	static final double TARGET_RADIUS = 500.0;
-	static final double BREAK_FACTOR = 3.0;
+	static final double TARGET_RADIUS = 0.0;
+	static final double BREAK_FACTOR = 2.0;
 	static final double ANGLE_FACTOR = 0.95;
 	
     public static class Pos {
@@ -185,14 +185,9 @@ class Player {
             	System.err.println("CLOSEST:"+targetC+" rel:"+targetC.sub(nextTg));
             }
             
-//            Pos target = correctDirection(pos, targetC, move);
-//            System.err.println("CORR:"+target+" rel:"+target.sub(targetC));
-//            
-//            double breakDist = calcBreakDist(pos, target, nextTg, v);
-//            if (nextCheckpointDist < breakDist) {
-//                speed = 5.0;
-//            }
-            Pos target = targetC;
+            Pos target = correctDirection(pos, targetC, move);
+            System.err.println("CORR:"+target+" rel:"+target.sub(targetC));
+
             speed = calcSpeed(pos, nextCheckpoint, move, nextCheckpointAngle, v);
 
             double breakDist = calcBreakDist(pos, nextCheckpoint, nextTg, v);
