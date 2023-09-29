@@ -2,6 +2,10 @@ import java.util.*;
 import java.io.*;
 import java.math.*;
 
+/**
+ * Auto-generated code below aims at helping you parse
+ * the standard input according to the problem statement.
+ **/
 class Player {
 
 	static final double TARGET_RADIUS = 0.0;
@@ -133,85 +137,8 @@ class Player {
 		return result;
 	}
 	
-
-    static Map<Pos, Pos> nextTarget = new HashMap<>();
-
-    public static void main(final String args[]) {
-        final Scanner in = new Scanner(System.in);
-
-        // game loop
-        int cntTargets = 0;
-        Pos lastCheckpoint = null;
-        Pos lastPos = null;
-        boolean boosted = false;
-        
-        while (true) {
-            final int x = in.nextInt();
-            final int y = in.nextInt();
-            final int nextCheckpointX = in.nextInt(); // x position of the next check point
-            final int nextCheckpointY = in.nextInt(); // y position of the next check point
-            final int nextCheckpointDist = in.nextInt(); // distance to the next checkpoint
-            final int nextCheckpointAngle = in.nextInt(); // angle between your pod orientation and the direction of the next checkpoint
-            final int opponentX = in.nextInt();
-            final int opponentY = in.nextInt();
-
-            // Write an action using System.out.println()
-            // To debug: System.err.println("Debug messages...");
-
-            Pos pos = new Pos(x, y);
-            Pos nextCheckpoint = new Pos(nextCheckpointX, nextCheckpointY);
-            
-            if (!nextCheckpoint.equals(lastCheckpoint)) {
-            	if (lastCheckpoint != null) {
-            		nextTarget.put(lastCheckpoint, nextCheckpoint);
-            	}
-            	lastCheckpoint = nextCheckpoint;
-                System.err.println("TARGET: "+nextCheckpoint);
-            }
-            
-            Pos move = (lastPos==null) ? Pos.POS0 : pos.sub(lastPos);
-            double v = move.magnitude();
-            lastPos = pos;
-            double speed; 
-            
-            Pos nextTg = nextTarget.get(nextCheckpoint);
-            System.err.println("CURR:"+pos+" next:"+nextCheckpoint+" next2:"+nextTg);
-            if (nextTg == null) {
-            	nextTg = new Pos(8000, 4500);
-            }
-            
-            Pos targetC = findClosestPos(pos, nextCheckpoint, nextTg, TARGET_RADIUS);
-            if (nextTg != null) {
-            	System.err.println("CLOSEST:"+targetC+" rel:"+targetC.sub(nextTg));
-            }
-            
-            Pos target = correctDirection(pos, targetC, move);
-            System.err.println("CORR:"+target+" rel:"+target.sub(targetC));
-
-            speed = calcSpeed(pos, nextCheckpoint, move, nextCheckpointAngle, v);
-
-            double breakDist = calcBreakDist(pos, nextCheckpoint, nextTg, v);
-            if (nextCheckpointDist<breakDist) {
-            	speed = 5;
-            }
-            
-            String speedStr = Integer.toString((int)speed);
-            if (!boosted) {
-            	speedStr = "BOOST";
-            	boosted = true;
-            }
-            String cmd = (int)target.x + " " + (int)target.y + " "+speedStr;
-
-            System.err.println("dist: "+nextCheckpointDist);
-            System.err.println("angle: "+nextCheckpointAngle);
-            System.err.println("v: "+v);
-
-            System.out.println(cmd);
-        }
-    }
-
-	private static double calcSpeed(Player.Pos pos, Player.Pos nextCheckpoint, Player.Pos move, int nextCheckpointAngle, double v) {
-		int ang = Math.abs(nextCheckpointAngle);
+	private static double calcSpeed(Pos pos, Pos nextCheckpoint, Pos move, double nextCheckpointAngle, double v) {
+		double ang = Math.abs(nextCheckpointAngle);
 		double result; 
 		if (ang<20.0) {
 			result = 100;
@@ -232,4 +159,97 @@ class Player {
 	}
 
 
+    static Map<Pos, Pos> nextTarget = new LinkedHashMap<>();
+    static List<Pos> checkpoints = new ArrayList<>();
+
+
+    public static void main(String args[]) {
+        Scanner in = new Scanner(System.in);
+        int laps = in.nextInt();
+        System.err.println("LAPS: "+laps);
+        int checkpointCount = in.nextInt();
+        System.err.println("CPS#: "+checkpointCount);
+        for (int i = 0; i < checkpointCount; i++) {
+            int checkpointX = in.nextInt();
+            int checkpointY = in.nextInt();
+            Pos cp = new Pos(checkpointX, checkpointY);
+            checkpoints.add(cp);
+            System.err.println("CP: "+cp);
+        }
+
+        boolean boosted = false;
+        // game loop
+        while (true) {
+        	int[] xa = new int[4];
+        	int[] ya = new int[4];
+        	int[] vxa = new int[4];
+        	int[] vya = new int[4];
+        	int[] anglea = new int[4];
+        	int[] nextCheckPointIda = new int[4];
+            for (int i = 0; i < 4; i++) {
+                xa[i] = in.nextInt(); // x position of your pod
+                System.err.println("X: "+xa[i]);
+                ya[i] = in.nextInt(); // y position of your pod
+                System.err.println("Y: "+ya[i]);
+                vxa[i] = in.nextInt(); // x speed of your pod
+                System.err.println("VX: "+vxa[i]);
+                vya[i] = in.nextInt(); // y speed of your pod
+                System.err.println("VY: "+vya[i]);
+                anglea[i] = in.nextInt(); // angle of your pod
+                System.err.println("ANG: "+anglea[i]);
+                nextCheckPointIda[i] = in.nextInt(); // next check point id of your pod
+                System.err.println("NCP: "+nextCheckPointIda[i]);
+            }
+            for (int i = 0; i < 2; i++) {
+                int x = xa[i];
+                int y = ya[i];
+                int vx = vxa[i];
+                int vy = vya[i];
+                int angle = anglea[i];
+                int nextCheckPointId = nextCheckPointIda[i];
+                
+                Pos pos = new Pos(x, y);
+                Pos move = new Pos(vx, vy);
+                double v = move.magnitude();
+
+                Pos nextCheckpoint = checkpoints.get(nextCheckPointId);
+                double speed; 
+                
+                Pos nextTg = checkpoints.get((nextCheckPointId+1)%checkpointCount);
+                System.err.println("CURR:"+pos+" next:"+nextCheckpoint+" next2:"+nextTg);
+                
+                Pos targetC = findClosestPos(pos, nextCheckpoint, nextTg, TARGET_RADIUS);
+                if (nextTg != null) {
+                	System.err.println("CLOSEST:"+targetC+" rel:"+targetC.sub(nextTg));
+                }
+                
+                Pos target = correctDirection(pos, targetC, move);
+                System.err.println("CORR:"+target+" rel:"+target.sub(targetC));
+
+                double nextCheckpointAngle = new Pos(1.0, 0.0).angle(nextCheckpoint.sub(pos));
+                double nextCheckpointDist = nextCheckpoint.sub(pos).magnitude();
+                System.err.println("ANGLE: "+nextCheckpointAngle+" / "+angle);
+                speed = calcSpeed(pos, nextCheckpoint, move, nextCheckpointAngle, v);
+
+                double breakDist = calcBreakDist(pos, nextCheckpoint, nextTg, v);
+                if (nextCheckpointDist<breakDist) {
+                	speed = 5;
+                }
+                
+                String speedStr = Integer.toString((int)speed);
+                if (!boosted) {
+                	speedStr = "BOOST";
+                }
+                String cmd = (int)target.x + " " + (int)target.y + " "+speedStr;
+
+                System.err.println("dist: "+nextCheckpointDist);
+                System.err.println("angle: "+nextCheckpointAngle);
+                System.err.println("v: "+v);
+
+                System.out.println(cmd);
+                
+            }
+        	boosted = true;
+        }
+    }
 }

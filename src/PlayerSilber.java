@@ -1,9 +1,8 @@
-package de.hechler.codingame.madpodracing;
 import java.util.*;
 import java.io.*;
 import java.math.*;
 
-class Player02Bronce1st {
+class PlayerSilber {
 
 	static final double TARGET_RADIUS = 0.0;
 	static final double BREAK_FACTOR = 2.0;
@@ -211,7 +210,7 @@ class Player02Bronce1st {
         }
     }
 
-	private static double calcSpeed(Pos pos, Pos nextCheckpoint, Pos move, int nextCheckpointAngle, double v) {
+	private static double calcSpeed(PlayerSilber.Pos pos, PlayerSilber.Pos nextCheckpoint, PlayerSilber.Pos move, int nextCheckpointAngle, double v) {
 		int ang = Math.abs(nextCheckpointAngle);
 		double result; 
 		if (ang<20.0) {

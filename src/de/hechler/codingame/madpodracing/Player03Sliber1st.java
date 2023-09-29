@@ -3,7 +3,7 @@ import java.util.*;
 import java.io.*;
 import java.math.*;
 
-class Player02Bronce1st {
+class Player03Sliber1st {
 
 	static final double TARGET_RADIUS = 0.0;
 	static final double BREAK_FACTOR = 2.0;
