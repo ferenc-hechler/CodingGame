@@ -2,7 +2,7 @@ import java.util.*;
 import java.io.*;
 import java.math.*;
 
-class PlayerSilber {
+class Player02Silber {
 
 	static final double TARGET_RADIUS = 0.0;
 	static final double BREAK_FACTOR = 2.0;
@@ -210,7 +210,7 @@ class PlayerSilber {
         }
     }
 
-	private static double calcSpeed(PlayerSilber.Pos pos, PlayerSilber.Pos nextCheckpoint, PlayerSilber.Pos move, int nextCheckpointAngle, double v) {
+	private static double calcSpeed(Player02Silber.Pos pos, Player02Silber.Pos nextCheckpoint, Player02Silber.Pos move, int nextCheckpointAngle, double v) {
 		int ang = Math.abs(nextCheckpointAngle);
 		double result; 
 		if (ang<20.0) {

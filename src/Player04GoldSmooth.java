@@ -7,7 +7,7 @@ import java.math.*;
  * Auto-generated code below aims at helping you parse
  * the standard input according to the problem statement.
  **/
-class Player {
+class Player04GoldSmooth {
 
 	static final double TARGET_RADIUS = 0.0;
 	static final double BREAK_FACTOR = 2.0;
