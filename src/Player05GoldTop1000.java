@@ -7,7 +7,7 @@ import java.math.*;
  * Auto-generated code below aims at helping you parse
  * the standard input according to the problem statement.
  **/
-class Player {
+class Player05GoldTop1000 {
 
 	static final double TARGET_RADIUS = 0.0;
 	static final double BREAK_FACTOR = 2.0;
@@ -94,9 +94,6 @@ class Player {
     	Pos v;
     	int angle;
     	int cpID;
-    	Pos nextCP;
-    	boolean goMiddle;
-    	int cntMiddle;
     	public Ship(int id) {
     		this.id = id;
     		this.cntCPs = 0;
@@ -104,31 +101,18 @@ class Player {
     		this.v = Pos.POS0;
     		this.angle = 0;
     		this.cpID = 0;
-    		this.nextCP = Pos.POS0;
-    		this.goMiddle = false;
-    		this.cntMiddle = 0;
     	}
-    	public void update(Pos newPos, Pos newV, int newAngle, int newCpID, Pos newNextCP) {
+    	public void update(Pos newPos, Pos newV, int newAngle, int newCpID) {
     		if (cpID != newCpID) {
     			cntCPs++;
     		}
     		cpID = newCpID;
-    		nextCP = newNextCP;
     		pos = newPos;
     		angle = newAngle;
     		v = newV;
     	}
     	public boolean isBetter(Ship other) {
-    		if (cntCPs > other.cntCPs) {
-    			return true;
-    		}
-    		if (cntCPs < other.cntCPs) {
-    			return false;
-    		}
-    		if (pos.dist(nextCP) <= other.pos.dist(other.nextCP)) {
-    			return true;
-    		}
-    		return false;
+    		return cntCPs >= other.cntCPs;
     	}
     	@Override public String toString() {
     		return "SHP-"+id+"["+pos+":"+cntCPs+"]";
@@ -155,9 +139,9 @@ class Player {
 		double angle = vn.degAngle(vn2);
 		double dist = vn.magnitude();
 		double speed = move.magnitude();
-//		System.err.println("angle: "+angle);
-//		System.err.println("dist: "+dist);
-//		System.err.println("speed: "+speed);
+		System.err.println("angle: "+angle);
+		System.err.println("dist: "+dist);
+		System.err.println("speed: "+speed);
 		if (dist <= 4000) {
 			return next;
 		}
@@ -190,7 +174,7 @@ class Player {
 
 
 	private static double calcBreakDist(Pos curr, Pos targ, Pos next, double v) {
-//		System.err.println("V:"+v);
+		System.err.println("V:"+v);
 		if (v<100.0) {
 			return 0;
 		}
@@ -198,7 +182,7 @@ class Player {
    	    Pos vt = targ.sub(next);
 		double ang = Math.abs(vn.degAngle(vt)/180.0); 
 		double result = BREAK_FACTOR*v*ang;
-//		System.err.println("VN:"+vn+" VT:"+vt+"ANG:"+ang+" RESULT:"+result);
+		System.err.println("VN:"+vn+" VT:"+vt+"ANG:"+ang+" RESULT:"+result);
 		return result;
 	}
 	
@@ -252,18 +236,18 @@ class Player {
         	
             for (int i = 0; i < 4; i++) {
                 int x = in.nextInt(); // x position of your pod
-//                System.err.println("X: "+x);
+                System.err.println("X: "+x);
                 int y = in.nextInt(); // y position of your pod
-//                System.err.println("Y: "+y);
+                System.err.println("Y: "+y);
                 int vx = in.nextInt(); // x speed of your pod
-//                System.err.println("VX: "+vx);
+                System.err.println("VX: "+vx);
                 int vy = in.nextInt(); // y speed of your pod
-//                System.err.println("VY: "+vy);
+                System.err.println("VY: "+vy);
                 int angle = in.nextInt(); // angle of your pod
-//                System.err.println("ANG: "+angle);
+                System.err.println("ANG: "+angle);
                 int nextCheckPointId = in.nextInt(); // next check point id of your pod
-//                System.err.println("NCP: "+nextCheckPointId);
-                ships[i].update(new Pos(x,y), new Pos(vx,vy), angle, nextCheckPointId, checkpoints.get(nextCheckPointId));
+                System.err.println("NCP: "+nextCheckPointId);
+                ships[i].update(new Pos(x,y), new Pos(vx,vy), angle, nextCheckPointId);
             }
             for (int i = 0; i < 2; i++) {
                 Pos pos = ships[i].pos;
@@ -271,44 +255,36 @@ class Player {
                 int angle = ships[i].angle;
                 int nextCheckPointId = ships[i].cpID;
                 Pos nextCheckpoint = checkpoints.get(nextCheckPointId);
-                double nextCheckpointAngle = new Pos(1.0, 0.0).degAngle(nextCheckpoint.sub(pos));
+                double nextCheckpointAngle = new Pos(1.0, 0.0).angle(nextCheckpoint.sub(pos));
                 double nextCheckpointDist = nextCheckpoint.sub(pos).magnitude();
                 double v = move.magnitude();
 
                 Pos target;
                 double speed; 
 
-                if (i==0) {
-                	target = attackBest(ships[i], ships[2], ships[3]);
+                Pos nextTg = checkpoints.get((nextCheckPointId+1)%checkpointCount);
+                System.err.println("CURR:"+pos+" next:"+nextCheckpoint+" next2:"+nextTg);
+                
+                Pos targetC = findClosestPos(pos, nextCheckpoint, nextTg, TARGET_RADIUS);
+                if (nextTg != null) {
+                	System.err.println("CLOSEST:"+targetC+" rel:"+targetC.sub(nextTg));
                 }
-                else {
-	                Pos nextTg = checkpoints.get((nextCheckPointId+1)%checkpointCount);
-//	                System.err.println("CURR:"+pos+" next:"+nextCheckpoint+" next2:"+nextTg);
-	                
-	                Pos targetC = findClosestPos(pos, nextCheckpoint, nextTg, TARGET_RADIUS);
-	                if (nextTg != null) {
-//	                	System.err.println("CLOSEST:"+targetC+" rel:"+targetC.sub(nextTg));
-	                }
-	                
-	                Pos targetT = calcTarget(pos, targetC, nextTg, move);
-//	                System.err.println("CALC:"+targetT+" rel:"+targetT.sub(targetC));
-	                
-	                target = correctDirection(pos, targetT, move);
-//	                System.err.println("CORR:"+target+" rel:"+target.sub(targetC));
-	
-//	                System.err.println("ANGLE: "+nextCheckpointAngle+" / "+angle);
-	                speed = calcSpeed(pos, nextCheckpoint, move, nextCheckpointAngle, v);
-	
-	                double breakDist = calcBreakDist(pos, nextCheckpoint, nextTg, v);
-	                if (nextCheckpointDist<breakDist) {
-	                	speed = 5;
-	                }
+                
+                Pos targetT = calcTarget(pos, targetC, nextTg, move);
+                System.err.println("CALC:"+targetT+" rel:"+targetT.sub(targetC));
+                
+                target = correctDirection(pos, targetT, move);
+                System.err.println("CORR:"+target+" rel:"+target.sub(targetC));
+
+                System.err.println("ANGLE: "+nextCheckpointAngle+" / "+angle);
+                speed = calcSpeed(pos, nextCheckpoint, move, nextCheckpointAngle, v);
+
+                double breakDist = calcBreakDist(pos, nextCheckpoint, nextTg, v);
+                if (nextCheckpointDist<breakDist) {
+                	speed = 5;
                 }
                 
                 speed = 100;
-                if (ships[i].goMiddle) {
-                	speed = 50;
-                }
                 
                 String speedStr = Integer.toString((int)speed);
                 if (!boosted) {
@@ -316,9 +292,9 @@ class Player {
                 }
                 String cmd = (int)target.x + " " + (int)target.y + " "+speedStr;
 
-//                System.err.println("dist: "+nextCheckpointDist);
-//                System.err.println("angle: "+nextCheckpointAngle);
-//                System.err.println("v: "+v);
+                System.err.println("dist: "+nextCheckpointDist);
+                System.err.println("angle: "+nextCheckpointAngle);
+                System.err.println("v: "+v);
 
                 System.out.println(cmd);
                 
@@ -327,34 +303,8 @@ class Player {
         }
     }
 
-	private static Pos attackBest(Ship self, Ship shipA, Ship shipB) {
+	private static Player05GoldTop1000.Pos attackBest(Pos pos, Ship shipA, Ship shipB) {
 		Ship ship = shipA.isBetter(shipB) ? shipA : shipB;
-		if (self.goMiddle) {
-			System.err.println("GOMIDDLE");
-			if (self.cntMiddle++>20) {
-				self.goMiddle = false;
-			}
-			Pos result = ship.nextCP;
-			if (result.dist(self.pos) < 3000) {
-				self.goMiddle = false;
-			}
-			return result;
-		}
-		System.err.println("ATTACK: "+ship);
-		if (ship.v.magnitude() >= self.v.magnitude()) {
-			System.err.println("ENEMY IS FASTER: "+ship.v.magnitude()+" ("+self.v.magnitude()+")");
-			double angle = Math.abs(ship.pos.sub(self.pos).degAngle(ship.v));
-			System.err.println("ANGLE: "+angle);
-			if (angle < 10.0) {
-				System.err.println("ACTIVATE GOMIDDLE ship:"+ship.v+" self:"+self.v+" dist:"+ship.pos.sub(self.pos));
-				self.goMiddle = true;
-			}
-		}
-		double dist = ship.pos.dist(self.pos);
-		double speed = self.v.magnitude();
-		double enemySpeed = ship.v.magnitude();
-		double hitDist = Math.min(10, enemySpeed/(speed+1));
-		Pos target = ship.pos.add(ship.v.mul(hitDist));
-		return target;
+		return ship.pos;
 	}
 }
